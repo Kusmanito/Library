@@ -1,9 +1,9 @@
 const express = require('express');
-const sqlite3 = require('sqlite3');
 const path = require('path');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
+const initSqlJs = require('sql.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,22 +31,57 @@ if (!process.env.AMVERA_DATA_PATH) {
     }
 }
 
-// Подключение к БД
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('❌ Ошибка подключения к БД:', err.message);
-    } else {
-        console.log('✅ Подключено к SQLite');
-        initDatabase();
+let db = null;
+
+// ============================================
+// ЗАГРУЗКА И СОХРАНЕНИЕ БАЗЫ ДАННЫХ
+// ============================================
+function loadDatabase() {
+    try {
+        if (fs.existsSync(dbPath)) {
+            const data = fs.readFileSync(dbPath);
+            return new Uint8Array(data);
+        }
+        return null;
+    } catch (err) {
+        console.error('Ошибка загрузки БД:', err.message);
+        return null;
     }
-});
+}
+
+function saveDatabase() {
+    try {
+        if (db) {
+            const data = db.export();
+            const buffer = Buffer.from(data);
+            fs.writeFileSync(dbPath, buffer);
+            console.log('✅ База данных сохранена');
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.error('❌ Ошибка сохранения БД:', err.message);
+        return false;
+    }
+}
 
 // ============================================
 // ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ
 // ============================================
-function initDatabase() {
-    db.serialize(() => {
-        // Таблица пользователей
+async function initDatabase() {
+    try {
+        const SQL = await initSqlJs();
+        const data = loadDatabase();
+        
+        if (data) {
+            db = new SQL.Database(data);
+            console.log('✅ База данных загружена');
+        } else {
+            db = new SQL.Database();
+            console.log('✅ Создана новая база данных');
+        }
+
+        // Создаем таблицы
         db.run(`
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +94,6 @@ function initDatabase() {
             )
         `);
 
-        // Таблица книг
         db.run(`
             CREATE TABLE IF NOT EXISTS books (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,7 +109,6 @@ function initDatabase() {
             )
         `);
 
-        // Таблица выдачи
         db.run(`
             CREATE TABLE IF NOT EXISTS loans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,23 +123,33 @@ function initDatabase() {
             )
         `);
 
+        console.log('✅ Таблицы созданы/проверены');
         addTestData();
-    });
+        saveDatabase();
+        
+        return db;
+    } catch (err) {
+        console.error('❌ Ошибка инициализации БД:', err.message);
+        throw err;
+    }
 }
 
 // ============================================
 // ТЕСТОВЫЕ ДАННЫЕ
 // ============================================
 function addTestData() {
-    db.get('SELECT COUNT(*) as count FROM books', (err, row) => {
-        if (err) return console.error('Ошибка проверки книг:', err);
-        if (row.count === 0) {
+    try {
+        // Проверяем, есть ли книги
+        const result = db.exec('SELECT COUNT(*) as count FROM books');
+        const count = result[0]?.values?.[0]?.[0] || 0;
+        
+        if (count === 0) {
             const books = [
-                ['978-5-17-118914-3', 'Война и мир', 'Лев Толстой', 'АСТ', 1869, 'Великий роман о жизни русского общества.', 5, 3],
-                ['978-5-04-118923-9', 'Преступление и наказание', 'Фёдор Достоевский', 'Эксмо', 1866, 'Роман о моральных последствиях преступления.', 4, 2],
-                ['978-5-17-089876-5', 'Мастер и Маргарита', 'Михаил Булгаков', 'АСТ', 1967, 'Роман-мистерия о любви и дьяволе.', 3, 1],
-                ['978-5-17-118886-8', '1984', 'Джордж Оруэлл', 'АСТ', 1949, 'Роман-антиутопия о тоталитарном обществе.', 2, 2],
-                ['978-5-04-107984-4', 'Тихий Дон', 'Михаил Шолохов', 'Эксмо', 1940, 'Эпопея о донском казачестве.', 3, 0]
+                ['978-5-17-118914-3', 'Война и мир', 'Лев Толстой', 'АСТ', 1869, 'Великий роман о жизни русского общества в эпоху наполеоновских войн.', 5, 3],
+                ['978-5-04-118923-9', 'Преступление и наказание', 'Фёдор Достоевский', 'Эксмо', 1866, 'Роман о моральных и психологических последствиях преступления.', 4, 2],
+                ['978-5-17-089876-5', 'Мастер и Маргарита', 'Михаил Булгаков', 'АСТ', 1967, 'Роман-мистерия о любви, творчестве и дьяволе в советской Москве.', 3, 1],
+                ['978-5-17-118886-8', '1984', 'Джордж Оруэлл', 'АСТ', 1949, 'Роман-антиутопия о тоталитарном обществе и контроле над личностью.', 2, 2],
+                ['978-5-04-107984-4', 'Тихий Дон', 'Михаил Шолохов', 'Эксмо', 1940, 'Эпопея о жизни донского казачества в годы Первой мировой и Гражданской войн.', 3, 0]
             ];
 
             const stmt = db.prepare(`
@@ -114,26 +157,77 @@ function addTestData() {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
-            books.forEach(book => {
+            for (const book of books) {
                 stmt.run(book);
-            });
+            }
 
-            stmt.finalize();
             console.log('✅ Добавлены тестовые книги');
         }
-    });
 
-    db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
-        if (err) return console.error('Ошибка проверки пользователей:', err);
-        if (row.count === 0) {
+        // Проверяем пользователей
+        const userResult = db.exec('SELECT COUNT(*) as count FROM users');
+        const userCount = userResult[0]?.values?.[0]?.[0] || 0;
+        
+        if (userCount === 0) {
             const passwordHash = bcrypt.hashSync('password123', 10);
-            db.run(`
+            const stmt = db.prepare(`
                 INSERT INTO users (email, password_hash, full_name, phone)
                 VALUES (?, ?, ?, ?)
-            `, ['admin@library.ru', passwordHash, 'Администратор', '+7(999)123-45-67']);
+            `);
+            stmt.run('admin@library.ru', passwordHash, 'Администратор', '+7(999)123-45-67');
             console.log('✅ Создан администратор (admin@library.ru / password123)');
         }
-    });
+    } catch (err) {
+        console.error('❌ Ошибка добавления тестовых данных:', err.message);
+    }
+}
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С БД
+// ============================================
+function getAll(query, params = []) {
+    try {
+        const stmt = db.prepare(query);
+        stmt.bind(params);
+        const results = [];
+        while (stmt.step()) {
+            results.push(stmt.getAsObject());
+        }
+        stmt.free();
+        return results;
+    } catch (err) {
+        console.error('Ошибка getAll:', err.message);
+        return [];
+    }
+}
+
+function getOne(query, params = []) {
+    try {
+        const stmt = db.prepare(query);
+        stmt.bind(params);
+        if (stmt.step()) {
+            const result = stmt.getAsObject();
+            stmt.free();
+            return result;
+        }
+        stmt.free();
+        return null;
+    } catch (err) {
+        console.error('Ошибка getOne:', err.message);
+        return null;
+    }
+}
+
+function runQuery(query, params = []) {
+    try {
+        const stmt = db.prepare(query);
+        stmt.run(params);
+        stmt.free();
+        return { changes: db.getRowsModified(), lastInsertRowid: db.lastInsertRowId };
+    } catch (err) {
+        console.error('Ошибка runQuery:', err.message);
+        throw err;
+    }
 }
 
 // ============================================
@@ -142,264 +236,283 @@ function addTestData() {
 
 // Получить все книги
 app.get('/api/books', (req, res) => {
-    const { search, author, year, limit = 20, offset = 0 } = req.query;
-    
-    let query = 'SELECT * FROM books WHERE 1=1';
-    const params = [];
+    try {
+        const { search, author, year, limit = 20, offset = 0 } = req.query;
+        
+        let query = 'SELECT * FROM books WHERE 1=1';
+        const params = [];
 
-    if (search) {
-        query += ' AND (title LIKE ? OR author LIKE ? OR isbn LIKE ?)';
-        const s = `%${search}%`;
-        params.push(s, s, s);
-    }
-    if (author) {
-        query += ' AND author = ?';
-        params.push(author);
-    }
-    if (year) {
-        query += ' AND year = ?';
-        params.push(year);
-    }
-
-    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
-    db.get(countQuery, params, (err, countRow) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
+        if (search) {
+            query += ' AND (title LIKE ? OR author LIKE ? OR isbn LIKE ?)';
+            const s = `%${search}%`;
+            params.push(s, s, s);
         }
+        if (author) {
+            query += ' AND author = ?';
+            params.push(author);
+        }
+        if (year) {
+            query += ' AND year = ?';
+            params.push(year);
+        }
+
+        // Получаем общее количество
+        const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
+        const countResult = getOne(countQuery, params);
+        const total = countResult ? countResult.total : 0;
 
         query += ' ORDER BY title LIMIT ? OFFSET ?';
         params.push(parseInt(limit), parseInt(offset));
 
-        db.all(query, params, (err, rows) => {
-            if (err) {
-                return res.status(500).json({ error: err.message });
-            }
-            res.json({
-                books: rows,
-                total: countRow.total,
-                limit: parseInt(limit),
-                offset: parseInt(offset)
-            });
+        const books = getAll(query, params);
+
+        res.json({
+            books: books,
+            total: total,
+            limit: parseInt(limit),
+            offset: parseInt(offset)
         });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Получить книгу по ID
 app.get('/api/books/:id', (req, res) => {
-    const { id } = req.params;
-    db.get('SELECT * FROM books WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (!row) {
+    try {
+        const book = getOne('SELECT * FROM books WHERE id = ?', [req.params.id]);
+        if (!book) {
             return res.status(404).json({ error: 'Книга не найдена' });
         }
-        res.json(row);
-    });
+        res.json(book);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Добавить книгу
 app.post('/api/books', (req, res) => {
-    const { isbn, title, author, publisher, year, description, total_copies } = req.body;
-    
-    if (!title || !author) {
-        return res.status(400).json({ error: 'Название и автор обязательны' });
-    }
-
-    const copies = total_copies || 1;
-    db.run(`
-        INSERT INTO books (isbn, title, author, publisher, year, description, total_copies, available_copies)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [isbn, title, author, publisher, year, description, copies, copies], function(err) {
-        if (err) {
-            if (err.message.includes('UNIQUE')) {
-                return res.status(400).json({ error: 'Книга с таким ISBN уже существует' });
-            }
-            return res.status(500).json({ error: err.message });
+    try {
+        const { isbn, title, author, publisher, year, description, total_copies } = req.body;
+        
+        if (!title || !author) {
+            return res.status(400).json({ error: 'Название и автор обязательны' });
         }
+
+        const copies = total_copies || 1;
+        const result = runQuery(`
+            INSERT INTO books (isbn, title, author, publisher, year, description, total_copies, available_copies)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [isbn, title, author, publisher, year, description, copies, copies]);
+        
+        saveDatabase();
         res.json({ 
-            id: this.lastID,
+            id: result.lastInsertRowid,
             message: 'Книга добавлена'
         });
-    });
+    } catch (err) {
+        if (err.message.includes('UNIQUE')) {
+            return res.status(400).json({ error: 'Книга с таким ISBN уже существует' });
+        }
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Обновить книгу
 app.put('/api/books/:id', (req, res) => {
-    const { id } = req.params;
-    const { title, author, publisher, year, description, total_copies, available_copies } = req.body;
+    try {
+        const { id } = req.params;
+        const { title, author, publisher, year, description, total_copies, available_copies } = req.body;
 
-    db.run(`
-        UPDATE books 
-        SET title = ?, author = ?, publisher = ?, year = ?, 
-            description = ?, total_copies = ?, available_copies = ?
-        WHERE id = ?
-    `, [title, author, publisher, year, description, total_copies, available_copies, id], function(err) {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (this.changes === 0) {
+        const result = runQuery(`
+            UPDATE books 
+            SET title = ?, author = ?, publisher = ?, year = ?, 
+                description = ?, total_copies = ?, available_copies = ?
+            WHERE id = ?
+        `, [title, author, publisher, year, description, total_copies, available_copies, id]);
+        
+        if (result.changes === 0) {
             return res.status(404).json({ error: 'Книга не найдена' });
         }
+        saveDatabase();
         res.json({ message: 'Книга обновлена' });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Удалить книгу
 app.delete('/api/books/:id', (req, res) => {
-    const { id } = req.params;
-    db.run('DELETE FROM books WHERE id = ?', [id], function(err) {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (this.changes === 0) {
+    try {
+        const result = runQuery('DELETE FROM books WHERE id = ?', [req.params.id]);
+        if (result.changes === 0) {
             return res.status(404).json({ error: 'Книга не найдена' });
         }
+        saveDatabase();
         res.json({ message: 'Книга удалена' });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Статистика
 app.get('/api/stats', (req, res) => {
-    const stats = {};
+    try {
+        const totalBooks = getOne('SELECT COUNT(*) as total FROM books')?.total || 0;
+        const totalUsers = getOne('SELECT COUNT(*) as total FROM users')?.total || 0;
+        const activeLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active"')?.total || 0;
+        const overdueLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active" AND due_date < datetime("now")')?.total || 0;
+        
+        const popularBooks = getAll(`
+            SELECT b.id, b.title, b.author, COUNT(l.id) as loan_count
+            FROM books b
+            JOIN loans l ON b.id = l.book_id
+            GROUP BY b.id
+            ORDER BY loan_count DESC
+            LIMIT 5
+        `);
 
-    db.get('SELECT COUNT(*) as total FROM books', (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        stats.totalBooks = row.total;
-
-        db.get('SELECT COUNT(*) as total FROM users', (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
-            stats.totalUsers = row.total;
-
-            db.get('SELECT COUNT(*) as total FROM loans WHERE status = "active"', (err, row) => {
-                if (err) return res.status(500).json({ error: err.message });
-                stats.activeLoans = row.total;
-
-                db.get('SELECT COUNT(*) as total FROM loans WHERE status = "active" AND due_date < datetime("now")', (err, row) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    stats.overdueLoans = row.total;
-
-                    db.all(`
-                        SELECT b.id, b.title, b.author, COUNT(l.id) as loan_count
-                        FROM books b
-                        JOIN loans l ON b.id = l.book_id
-                        GROUP BY b.id
-                        ORDER BY loan_count DESC
-                        LIMIT 5
-                    `, (err, rows) => {
-                        if (err) return res.status(500).json({ error: err.message });
-                        stats.popularBooks = rows;
-                        res.json(stats);
-                    });
-                });
-            });
+        res.json({
+            totalBooks,
+            totalUsers,
+            activeLoans,
+            overdueLoans,
+            popularBooks
         });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Выдать книгу
 app.post('/api/loans', (req, res) => {
-    const { user_id, book_id, due_days = 14 } = req.body;
+    try {
+        const { user_id, book_id, due_days = 14 } = req.body;
 
-    db.get('SELECT available_copies FROM books WHERE id = ?', [book_id], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row || row.available_copies < 1) {
+        // Проверяем наличие книги
+        const book = getOne('SELECT available_copies FROM books WHERE id = ?', [book_id]);
+        if (!book || book.available_copies < 1) {
             return res.status(400).json({ error: 'Книга недоступна' });
         }
 
-        db.run(`
+        // Создаем запись о выдаче
+        const result = runQuery(`
             INSERT INTO loans (user_id, book_id, due_date)
             VALUES (?, ?, datetime("now", "+" || ? || " days"))
-        `, [user_id, book_id, due_days], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
+        `, [user_id, book_id, due_days]);
 
-            db.run('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', [book_id]);
-            res.json({ 
-                loan_id: this.lastID,
-                message: 'Книга выдана'
-            });
+        // Уменьшаем количество доступных копий
+        runQuery('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', [book_id]);
+        
+        saveDatabase();
+        res.json({ 
+            loan_id: result.lastInsertRowid,
+            message: 'Книга выдана'
         });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Вернуть книгу
 app.put('/api/loans/:id/return', (req, res) => {
-    const { id } = req.params;
+    try {
+        const { id } = req.params;
 
-    db.get('SELECT book_id FROM loans WHERE id = ? AND status = "active"', [id], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: 'Запись не найдена или уже возвращена' });
+        // Проверяем, активна ли выдача
+        const loan = getOne('SELECT book_id FROM loans WHERE id = ? AND status = "active"', [id]);
+        if (!loan) {
+            return res.status(404).json({ error: 'Запись не найдена или уже возвращена' });
+        }
 
-        db.run(`
+        // Обновляем статус выдачи
+        runQuery(`
             UPDATE loans 
             SET return_date = datetime("now"), status = "returned" 
             WHERE id = ?
-        `, [id], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
+        `, [id]);
 
-            db.run('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?', [row.book_id]);
-            res.json({ message: 'Книга возвращена' });
-        });
-    });
+        // Увеличиваем количество доступных копий
+        runQuery('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?', [loan.book_id]);
+        
+        saveDatabase();
+        res.json({ message: 'Книга возвращена' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Получить все выдачи
 app.get('/api/loans', (req, res) => {
-    db.all(`
-        SELECT l.*, u.full_name as user_name, b.title as book_title 
-        FROM loans l
-        JOIN users u ON l.user_id = u.id
-        JOIN books b ON l.book_id = b.id
-        ORDER BY l.loan_date DESC
-    `, (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const loans = getAll(`
+            SELECT l.*, u.full_name as user_name, b.title as book_title 
+            FROM loans l
+            JOIN users u ON l.user_id = u.id
+            JOIN books b ON l.book_id = b.id
+            ORDER BY l.loan_date DESC
+        `);
+        res.json(loans);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Регистрация
 app.post('/api/users/register', (req, res) => {
-    const { email, password, full_name, phone, consent_152fz } = req.body;
+    try {
+        const { email, password, full_name, phone, consent_152fz } = req.body;
 
-    if (!email || !password || !full_name) {
-        return res.status(400).json({ error: 'Email, пароль и имя обязательны' });
-    }
+        if (!email || !password || !full_name) {
+            return res.status(400).json({ error: 'Email, пароль и имя обязательны' });
+        }
 
-    const passwordHash = bcrypt.hashSync(password, 10);
-    db.run(`
-        INSERT INTO users (email, password_hash, full_name, phone, consent_152fz)
-        VALUES (?, ?, ?, ?, ?)
-    `, [email, passwordHash, full_name, phone, consent_152fz || 1], function(err) {
-        if (err) {
+        const passwordHash = bcrypt.hashSync(password, 10);
+        try {
+            const result = runQuery(`
+                INSERT INTO users (email, password_hash, full_name, phone, consent_152fz)
+                VALUES (?, ?, ?, ?, ?)
+            `, [email, passwordHash, full_name, phone, consent_152fz || 1]);
+            
+            saveDatabase();
+            res.json({ 
+                id: result.lastInsertRowid,
+                message: 'Регистрация успешна'
+            });
+        } catch (err) {
             if (err.message.includes('UNIQUE')) {
                 return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
             }
-            return res.status(500).json({ error: err.message });
+            throw err;
         }
-        res.json({ 
-            id: this.lastID,
-            message: 'Регистрация успешна'
-        });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Авторизация
 app.post('/api/users/login', (req, res) => {
-    const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
 
-    db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!user) return res.status(401).json({ error: 'Неверный email или пароль' });
+        const user = getOne('SELECT * FROM users WHERE email = ?', [email]);
+        if (!user) {
+            return res.status(401).json({ error: 'Неверный email или пароль' });
+        }
 
         const valid = bcrypt.compareSync(password, user.password_hash);
-        if (!valid) return res.status(401).json({ error: 'Неверный email или пароль' });
+        if (!valid) {
+            return res.status(401).json({ error: 'Неверный email или пароль' });
+        }
 
         delete user.password_hash;
         res.json({ 
             user,
             message: 'Вход выполнен'
         });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Резервное копирование
@@ -413,6 +526,7 @@ app.get('/api/backup', (req, res) => {
             fs.mkdirSync(backupDir, { recursive: true });
         }
 
+        saveDatabase();
         fs.copyFileSync(dbPath, backupPath);
         
         res.json({ 
@@ -433,9 +547,19 @@ app.get('*', (req, res) => {
 // ============================================
 // ЗАПУСК СЕРВЕРА
 // ============================================
-app.listen(PORT, () => {
-    console.log(`🚀 Сервер запущен на порту ${PORT}`);
-    console.log(`📚 Библиотечная система`);
-    console.log(`🔗 http://localhost:${PORT}`);
-    console.log(`📧 admin@library.ru / password123`);
-});
+async function startServer() {
+    try {
+        await initDatabase();
+        app.listen(PORT, () => {
+            console.log(`🚀 Сервер запущен на порту ${PORT}`);
+            console.log(`📚 Библиотечная система`);
+            console.log(`🔗 http://localhost:${PORT}`);
+            console.log(`📧 admin@library.ru / password123`);
+        });
+    } catch (err) {
+        console.error('❌ Ошибка запуска сервера:', err.message);
+        process.exit(1);
+    }
+}
+
+startServer();
