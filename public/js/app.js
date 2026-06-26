@@ -1,6 +1,5 @@
 const API_URL = '/api';
 
-// Загрузка статистики
 async function loadStats() {
     try {
         const response = await fetch(`${API_URL}/stats`);
@@ -11,7 +10,6 @@ async function loadStats() {
         document.getElementById('activeLoans').textContent = stats.activeLoans || 0;
         document.getElementById('overdueLoans').textContent = stats.overdueLoans || 0;
 
-        // Популярные книги
         const grid = document.getElementById('popularBooksGrid');
         if (grid && stats.popularBooks) {
             if (stats.popularBooks.length === 0) {
@@ -34,19 +32,4 @@ async function loadStats() {
     }
 }
 
-// Поиск книг
-function searchBooks() {
-    const query = document.getElementById('searchInput').value.trim();
-    if (query) {
-        window.location.href = `/catalog.html?search=${encodeURIComponent(query)}`;
-    }
-}
-
-// Инициализация
-document.addEventListener('DOMContentLoaded', () => {
-    loadStats();
-
-    document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchBooks();
-    });
-});
+document.addEventListener('DOMContentLoaded', loadStats);

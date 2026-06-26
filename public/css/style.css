@@ -17,7 +17,6 @@ body {
     padding: 0 20px;
 }
 
-/* Шапка */
 header {
     background: #2c3e50;
     color: white;
@@ -60,33 +59,6 @@ header nav {
     background: #34495e;
 }
 
-.search-box {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.search-box input {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    width: 200px;
-}
-
-.search-box button {
-    padding: 0.5rem 1rem;
-    background: #3498db;
-    border: none;
-    border-radius: 4px;
-    color: white;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.search-box button:hover {
-    background: #2980b9;
-}
-
-/* Герой */
 .hero {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -112,8 +84,6 @@ header nav {
     text-decoration: none;
     border-radius: 50px;
     font-weight: bold;
-    border: none;
-    cursor: pointer;
     transition: transform 0.3s, box-shadow 0.3s;
 }
 
@@ -122,50 +92,6 @@ header nav {
     box-shadow: 0 10px 20px rgba(0,0,0,0.2);
 }
 
-.btn-secondary {
-    display: inline-block;
-    padding: 0.5rem 1.5rem;
-    background: #95a5a6;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.btn-secondary:hover {
-    background: #7f8c8d;
-}
-
-.btn-danger {
-    padding: 0.3rem 0.8rem;
-    background: #e74c3c;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.btn-danger:hover {
-    background: #c0392b;
-}
-
-.btn-success {
-    padding: 0.3rem 0.8rem;
-    background: #27ae60;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.btn-success:hover {
-    background: #219a52;
-}
-
-/* Статистика */
 .stats-section {
     padding: 3rem 0;
 }
@@ -205,7 +131,6 @@ header nav {
     margin-top: 0.5rem;
 }
 
-/* Книги */
 .books-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -272,55 +197,43 @@ header nav {
     color: #e74c3c;
 }
 
-/* Каталог */
-.catalog-section {
-    padding: 2rem 0;
-}
-
-.catalog-section h1 {
-    margin-bottom: 2rem;
-}
-
-.filters {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-}
-
-.filters select {
-    padding: 0.5rem 1rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: white;
-}
-
-.pagination {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 2rem;
-}
-
-.pagination button {
-    padding: 0.5rem 1rem;
-    border: 1px solid #ddd;
-    background: white;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.pagination button:hover {
-    background: #f0f0f0;
-}
-
-.pagination button.active {
-    background: #3498db;
+footer {
+    background: #2c3e50;
     color: white;
-    border-color: #3498db;
+    padding: 2rem 0;
+    margin-top: 3rem;
+    text-align: center;
 }
 
-/* Админка */
-.admin-section {
-    padding: 
+footer p {
+    margin: 0.5rem 0;
+}
+
+@media (max-width: 768px) {
+    header nav {
+        flex-direction: column;
+    }
+    
+    .nav-links {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .hero h1 {
+        font-size: 2rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .books-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}

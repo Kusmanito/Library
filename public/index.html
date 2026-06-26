@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Библиотека - Главная</title>
+    <title>Библиотека</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -15,10 +15,6 @@
                 <li><a href="/catalog.html">Каталог</a></li>
                 <li><a href="/admin.html">Админка</a></li>
             </ul>
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Поиск книг...">
-                <button onclick="searchBooks()">🔍</button>
-            </div>
         </nav>
     </header>
 
@@ -58,9 +54,7 @@
         <section class="popular-section">
             <div class="container">
                 <h2>🔥 Популярные книги</h2>
-                <div class="books-grid" id="popularBooksGrid">
-                    <!-- Загружается через JS -->
-                </div>
+                <div class="books-grid" id="popularBooksGrid"></div>
             </div>
         </section>
     </main>
