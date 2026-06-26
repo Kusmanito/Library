@@ -1,0 +1,13 @@
+meta:
+  environment: node        # Говорим, что это Node.js проект
+  toolchain:
+    name: npm              # Используем менеджер пакетов npm
+    version: 18            # Версия Node.js (можно указать 20 или 22)
+
+build:
+  additionalCommands: npm install  # Команда для установки зависимостей
+
+run:
+  scriptName: server.js    # Имя вашего главного файла, который запускает сервер
+  containerPort: 3000      # Порт, который слушает ваше приложение
+  persistenceMount: /data  # Папка для постоянного хранилища (важно для SQLite!)
