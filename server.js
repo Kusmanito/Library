@@ -13,28 +13,30 @@ app.use(cors());
 app.use(express.json());
 
 // ============================================
-// ПРАВИЛЬНЫЙ ПУТЬ К СТАТИЧЕСКИМ ФАЙЛАМ
+// ПУТЬ К СТАТИЧЕСКИМ ФАЙЛАМ
 // ============================================
 app.use(express.static(path.join(__dirname, 'public')));
-
 console.log(`📁 Папка public: ${path.join(__dirname, 'public')}`);
 
 // ============================================
 // НАСТРОЙКА ПУТИ К БАЗЕ ДАННЫХ ДЛЯ AMVERA
 // ============================================
-const dbPath = process.env.AMVERA_DATA_PATH 
-    ? `${process.env.AMVERA_DATA_PATH}/library.db` 
-    : path.join(__dirname, 'database', 'library.db');
+let dbPath;
+if (process.env.AMVERA_DATA_PATH) {
+    // На Amvera используем папку /data
+    dbPath = path.join(process.env.AMVERA_DATA_PATH, 'library.db');
+} else {
+    // Локально используем папку ./database
+    dbPath = path.join(__dirname, 'database', 'library.db');
+}
 
 console.log(`📂 Путь к БД: ${dbPath}`);
 
-// Создаем папку для БД, если её нет (локально)
-if (!process.env.AMVERA_DATA_PATH) {
-    const dbDir = path.dirname(dbPath);
-    if (!fs.existsSync(dbDir)) {
-        fs.mkdirSync(dbDir, { recursive: true });
-        console.log(`📁 Создана папка: ${dbDir}`);
-    }
+// Создаем папку для БД, если её нет
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+    console.log(`📁 Создана папка: ${dbDir}`);
 }
 
 let db = null;
@@ -564,6 +566,7 @@ async function startServer() {
             console.log(`📚 Библиотечная система`);
             console.log(`🔗 http://localhost:${PORT}`);
             console.log(`📧 admin@library.ru / password123`);
+            console.log(`📂 Путь к БД: ${dbPath}`);
         });
     } catch (err) {
         console.error('❌ Ошибка запуска сервера:', err.message);

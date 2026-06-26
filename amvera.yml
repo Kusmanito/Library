@@ -5,9 +5,7 @@ meta:
     version: 18
 
 build:
-  additionalCommands: |
-    npm install
-    npm rebuild sqlite3
+  additionalCommands: npm install
 
 run:
   scriptName: server.js
