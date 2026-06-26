@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Библиотека - Каталог</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">📚 Библиотека</div>
+            <ul class="nav-links">
+                <li><a href="/">Главная</a></li>
+                <li><a href="/catalog.html" class="active">Каталог</a></li>
+                <li><a href="/admin.html">Админка</a></li>
+            </ul>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Поиск книг..." onkeyup="filterBooks()">
+                <button onclick="filterBooks()">🔍</button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="catalog-section">
+            <div class="container">
+                <h1>📖 Каталог книг</h1>
+                
+                <div class="filters">
+                    <select id="authorFilter" onchange="filterBooks()">
+                        <option value="">Все авторы</option>
+                    </select>
+                    <select id="yearFilter" onchange="filterBooks()">
+                        <option value="">Все годы</option>
+                    </select>
+                    <button onclick="clearFilters()" class="btn-secondary">Сбросить</button>
+                </div>
+
+                <div class="books-grid" id="catalogGrid">
+                    <!-- Загружается через JS -->
+                </div>
+
+                <div class="pagination" id="pagination">
+                    <!-- Загружается через JS -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2026 Библиотечная система. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script src="/js/catalog.js"></script>
+</body>
+</html>

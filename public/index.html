@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Библиотека - Главная</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">📚 Библиотека</div>
+            <ul class="nav-links">
+                <li><a href="/" class="active">Главная</a></li>
+                <li><a href="/catalog.html">Каталог</a></li>
+                <li><a href="/admin.html">Админка</a></li>
+            </ul>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Поиск книг...">
+                <button onclick="searchBooks()">🔍</button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h1>📚 Добро пожаловать в библиотеку</h1>
+                <p>Тысячи книг ждут вас. Читайте, учитесь, вдохновляйтесь!</p>
+                <a href="/catalog.html" class="btn-primary">Перейти к каталогу</a>
+            </div>
+        </section>
+
+        <section class="stats-section">
+            <div class="container">
+                <h2>📊 Статистика библиотеки</h2>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalBooks">0</div>
+                        <div class="stat-label">Всего книг</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalUsers">0</div>
+                        <div class="stat-label">Читателей</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="activeLoans">0</div>
+                        <div class="stat-label">Книг в выдаче</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="overdueLoans">0</div>
+                        <div class="stat-label">Просрочено</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="popular-section">
+            <div class="container">
+                <h2>🔥 Популярные книги</h2>
+                <div class="books-grid" id="popularBooksGrid">
+                    <!-- Загружается через JS -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2026 Библиотечная система. Все права защищены.</p>
+            <p><small>Данные защищены в соответствии с 152-ФЗ</small></p>
+        </div>
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
