@@ -11,14 +11,20 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+
+// ============================================
+// ПРАВИЛЬНЫЙ ПУТЬ К СТАТИЧЕСКИМ ФАЙЛАМ
+// ============================================
+app.use(express.static(path.join(__dirname, 'public')));
+
+console.log(`📁 Папка public: ${path.join(__dirname, 'public')}`);
 
 // ============================================
 // НАСТРОЙКА ПУТИ К БАЗЕ ДАННЫХ ДЛЯ AMVERA
 // ============================================
 const dbPath = process.env.AMVERA_DATA_PATH 
     ? `${process.env.AMVERA_DATA_PATH}/library.db` 
-    : './database/library.db';
+    : path.join(__dirname, 'database', 'library.db');
 
 console.log(`📂 Путь к БД: ${dbPath}`);
 
@@ -539,7 +545,10 @@ app.get('/api/backup', (req, res) => {
     }
 });
 
-// Статические файлы
+// ============================================
+// СТАТИЧЕСКИЕ ФАЙЛЫ (ОБРАБОТЧИК 404)
+// ============================================
+// Если файл не найден в public, отдаем index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
