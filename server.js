@@ -16,14 +16,11 @@ app.use(express.static('public'));
 // ============================================
 // НАСТРОЙКА ПУТИ К БАЗЕ ДАННЫХ ДЛЯ AMVERA
 // ============================================
-// Если переменная AMVERA_DATA_PATH существует (на Amvera),
-// используем папку /data, иначе локальную папку ./database
 const dbPath = process.env.AMVERA_DATA_PATH 
     ? `${process.env.AMVERA_DATA_PATH}/library.db` 
     : './database/library.db';
 
 console.log(`📂 Путь к БД: ${dbPath}`);
-console.log(`🌍 Переменная AMVERA_DATA_PATH: ${process.env.AMVERA_DATA_PATH || 'не задана (локальный режим)'}`);
 
 // Создаем папку для БД, если её нет (локально)
 if (!process.env.AMVERA_DATA_PATH) {
@@ -60,9 +57,7 @@ function initDatabase() {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 consent_152fz BOOLEAN DEFAULT 1
             )
-        `, (err) => {
-            if (err) console.error('Ошибка создания таблицы users:', err);
-        });
+        `);
 
         // Таблица книг
         db.run(`
@@ -78,9 +73,7 @@ function initDatabase() {
                 available_copies INTEGER DEFAULT 1,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        `, (err) => {
-            if (err) console.error('Ошибка создания таблицы books:', err);
-        });
+        `);
 
         // Таблица выдачи
         db.run(`
@@ -95,11 +88,8 @@ function initDatabase() {
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 FOREIGN KEY (book_id) REFERENCES books(id)
             )
-        `, (err) => {
-            if (err) console.error('Ошибка создания таблицы loans:', err);
-        });
+        `);
 
-        // Добавляем тестовые данные
         addTestData();
     });
 }
@@ -108,16 +98,15 @@ function initDatabase() {
 // ТЕСТОВЫЕ ДАННЫЕ
 // ============================================
 function addTestData() {
-    // Проверяем, есть ли книги
     db.get('SELECT COUNT(*) as count FROM books', (err, row) => {
         if (err) return console.error('Ошибка проверки книг:', err);
         if (row.count === 0) {
             const books = [
-                ['978-5-17-118914-3', 'Война и мир', 'Лев Толстой', 'АСТ', 1869, 'Великий роман о жизни русского общества в эпоху наполеоновских войн.', 5, 3],
-                ['978-5-04-118923-9', 'Преступление и наказание', 'Фёдор Достоевский', 'Эксмо', 1866, 'Роман о моральных и психологических последствиях преступления.', 4, 2],
-                ['978-5-17-089876-5', 'Мастер и Маргарита', 'Михаил Булгаков', 'АСТ', 1967, 'Роман-мистерия о любви, творчестве и дьяволе в советской Москве.', 3, 1],
-                ['978-5-17-118886-8', '1984', 'Джордж Оруэлл', 'АСТ', 1949, 'Роман-антиутопия о тоталитарном обществе и контроле над личностью.', 2, 2],
-                ['978-5-04-107984-4', 'Тихий Дон', 'Михаил Шолохов', 'Эксмо', 1940, 'Эпопея о жизни донского казачества в годы Первой мировой и Гражданской войн.', 3, 0]
+                ['978-5-17-118914-3', 'Война и мир', 'Лев Толстой', 'АСТ', 1869, 'Великий роман о жизни русского общества.', 5, 3],
+                ['978-5-04-118923-9', 'Преступление и наказание', 'Фёдор Достоевский', 'Эксмо', 1866, 'Роман о моральных последствиях преступления.', 4, 2],
+                ['978-5-17-089876-5', 'Мастер и Маргарита', 'Михаил Булгаков', 'АСТ', 1967, 'Роман-мистерия о любви и дьяволе.', 3, 1],
+                ['978-5-17-118886-8', '1984', 'Джордж Оруэлл', 'АСТ', 1949, 'Роман-антиутопия о тоталитарном обществе.', 2, 2],
+                ['978-5-04-107984-4', 'Тихий Дон', 'Михаил Шолохов', 'Эксмо', 1940, 'Эпопея о донском казачестве.', 3, 0]
             ];
 
             const stmt = db.prepare(`
@@ -126,9 +115,7 @@ function addTestData() {
             `);
 
             books.forEach(book => {
-                stmt.run(book, (err) => {
-                    if (err) console.error('Ошибка добавления книги:', err);
-                });
+                stmt.run(book);
             });
 
             stmt.finalize();
@@ -136,7 +123,6 @@ function addTestData() {
         }
     });
 
-    // Проверяем пользователей
     db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
         if (err) return console.error('Ошибка проверки пользователей:', err);
         if (row.count === 0) {
@@ -144,10 +130,8 @@ function addTestData() {
             db.run(`
                 INSERT INTO users (email, password_hash, full_name, phone)
                 VALUES (?, ?, ?, ?)
-            `, ['admin@library.ru', passwordHash, 'Администратор', '+7(999)123-45-67'], (err) => {
-                if (err) console.error('Ошибка создания админа:', err);
-                else console.log('✅ Создан администратор (admin@library.ru / password123)');
-            });
+            `, ['admin@library.ru', passwordHash, 'Администратор', '+7(999)123-45-67']);
+            console.log('✅ Создан администратор (admin@library.ru / password123)');
         }
     });
 }
@@ -156,9 +140,7 @@ function addTestData() {
 // API ЭНДПОИНТЫ
 // ============================================
 
-// ---------- КНИГИ ----------
-
-// Получить все книги (с фильтрацией и пагинацией)
+// Получить все книги
 app.get('/api/books', (req, res) => {
     const { search, author, year, limit = 20, offset = 0 } = req.query;
     
@@ -179,7 +161,6 @@ app.get('/api/books', (req, res) => {
         params.push(year);
     }
 
-    // Получаем общее количество
     const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
     db.get(countQuery, params, (err, countRow) => {
         if (err) {
@@ -231,6 +212,9 @@ app.post('/api/books', (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [isbn, title, author, publisher, year, description, copies, copies], function(err) {
         if (err) {
+            if (err.message.includes('UNIQUE')) {
+                return res.status(400).json({ error: 'Книга с таким ISBN уже существует' });
+            }
             return res.status(500).json({ error: err.message });
         }
         res.json({ 
@@ -275,8 +259,7 @@ app.delete('/api/books/:id', (req, res) => {
     });
 });
 
-// ---------- СТАТИСТИКА ----------
-
+// Статистика
 app.get('/api/stats', (req, res) => {
     const stats = {};
 
@@ -296,7 +279,6 @@ app.get('/api/stats', (req, res) => {
                     if (err) return res.status(500).json({ error: err.message });
                     stats.overdueLoans = row.total;
 
-                    // Популярные книги
                     db.all(`
                         SELECT b.id, b.title, b.author, COUNT(l.id) as loan_count
                         FROM books b
@@ -314,8 +296,6 @@ app.get('/api/stats', (req, res) => {
         });
     });
 });
-
-// ---------- ВЫДАЧА КНИГ ----------
 
 // Выдать книгу
 app.post('/api/loans', (req, res) => {
@@ -377,8 +357,6 @@ app.get('/api/loans', (req, res) => {
     });
 });
 
-// ---------- ПОЛЬЗОВАТЕЛИ ----------
-
 // Регистрация
 app.post('/api/users/register', (req, res) => {
     const { email, password, full_name, phone, consent_152fz } = req.body;
@@ -424,33 +402,30 @@ app.post('/api/users/login', (req, res) => {
     });
 });
 
-// ---------- РЕЗЕРВНОЕ КОПИРОВАНИЕ ----------
-
+// Резервное копирование
 app.get('/api/backup', (req, res) => {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupDir = path.join(__dirname, 'backups');
-    const backupPath = path.join(backupDir, `library-backup-${timestamp}.db`);
+    try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupDir = path.join(__dirname, 'backups');
+        const backupPath = path.join(backupDir, `library-backup-${timestamp}.db`);
 
-    // Создаем папку для бэкапов (если её нет)
-    if (!fs.existsSync(backupDir)) {
-        fs.mkdirSync(backupDir, { recursive: true });
-    }
-
-    // Копируем файл БД
-    fs.copyFile(dbPath, backupPath, (err) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
+        if (!fs.existsSync(backupDir)) {
+            fs.mkdirSync(backupDir, { recursive: true });
         }
+
+        fs.copyFileSync(dbPath, backupPath);
+        
         res.json({ 
             message: 'Бэкап создан',
             file: backupPath,
             timestamp: timestamp
         });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// ---------- СТАТИЧЕСКИЕ ФАЙЛЫ ----------
-// Для всех остальных запросов отдаем index.html
+// Статические файлы
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
