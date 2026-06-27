@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в библиотеку</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .auth-container {
+            max-width: 400px;
+            margin: 4rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        .auth-container h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #2c3e50;
+        }
+        .auth-container .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .auth-container .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .auth-container .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .auth-container .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .auth-container .btn-primary {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1.1rem;
+        }
+        .auth-container .switch-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #7f8c8d;
+        }
+        .auth-container .switch-link a {
+            color: #3498db;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .auth-container .switch-link a:hover {
+            text-decoration: underline;
+        }
+        .auth-container .error-msg {
+            color: #e74c3c;
+            background: #fadbd8;
+            padding: 0.8rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .auth-container .success-msg {
+            color: #27ae60;
+            background: #d5f5e3;
+            padding: 0.8rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .auth-container .info-msg {
+            color: #2980b9;
+            background: #d6eaf8;
+            padding: 0.8rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">📚 Библиотека</div>
+            <ul class="nav-links">
+                <li><a href="/">Главная</a></li>
+                <li><a href="/catalog.html">Каталог</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="auth-container">
+                <h1 id="formTitle">🔐 Вход в систему</h1>
+                
+                <div id="errorMsg" class="error-msg"></div>
+                <div id="successMsg" class="success-msg"></div>
+                <div id="infoMsg" class="info-msg"></div>
+
+                <form id="authForm" onsubmit="handleAuth(event)">
+                    <div class="form-group" id="fullNameGroup" style="display: none;">
+                        <label>Имя пользователя</label>
+                        <input type="text" id="fullName" placeholder="Как к вам обращаться?">
+                    </div>
+                    <div class="form-group">
+                        <label>Логин</label>
+                        <input type="text" id="username" placeholder="Введите логин" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" id="password" placeholder="Введите пароль" required>
+                    </div>
+                    <button type="submit" class="btn-primary" id="submitBtn">Войти</button>
+                </form>
+
+                <div class="switch-link">
+                    <span id="switchText">Нет аккаунта?</span>
+                    <a id="switchLink" onclick="toggleMode()">Зарегистрироваться</a>
+                </div>
+
+                <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; font-size: 0.9rem; color: #7f8c8d;">
+                    <p><strong>Тестовые аккаунты:</strong></p>
+                    <p>👑 Создатель: <code>creator</code> / <code>admin123</code></p>
+                    <p>👤 Пользователь: <code>user</code> / <code>user123</code></p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2026 Библиотечная система. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = '/api';
+        let isRegisterMode = false;
+
+        // Проверяем параметр в URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('register') === 'true') {
+            isRegisterMode = true;
+            updateForm();
+        }
+
+        function toggleMode() {
+            isRegisterMode = !isRegisterMode;
+            updateForm();
+            clearMessages();
+        }
+
+        function updateForm() {
+            const title = document.getElementById('formTitle');
+            const btn = document.getElementById('submitBtn');
+            const switchText = document.getElementById('switchText');
+            const switchLink = document.getElementById('switchLink');
+            const fullNameGroup = document.getElementById('fullNameGroup');
+
+            if (isRegisterMode) {
+                title.textContent = '📝 Регистрация';
+                btn.textContent = 'Зарегистрироваться';
+                switchText.textContent = 'Уже есть аккаунт?';
+                switchLink.textContent = 'Войти';
+                fullNameGroup.style.display = 'block';
+            } else {
+                title.textContent = '🔐 Вход в систему';
+                btn.textContent = 'Войти';
+                switchText.textContent = 'Нет аккаунта?';
+                switchLink.textContent = 'Зарегистрироваться';
+                fullNameGroup.style.display = 'none';
+            }
+        }
+
+        function clearMessages() {
+            document.getElementById('errorMsg').style.display = 'none';
+            document.getElementById('successMsg').style.display = 'none';
+            document.getElementById('infoMsg').style.display = 'none';
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('successMsg').style.display = 'none';
+            document.getElementById('infoMsg').style.display = 'none';
+        }
+
+        function showSuccess(msg) {
+            const el = document.getElementById('successMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('errorMsg').style.display = 'none';
+            document.getElementById('infoMsg').style.display = 'none';
+        }
+
+        function showInfo(msg) {
+            const el = document.getElementById('infoMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('errorMsg').style.display = 'none';
+            document.getElementById('successMsg').style.display = 'none';
+        }
+
+        async function handleAuth(event) {
+            event.preventDefault();
+            clearMessages();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const fullName = document.getElementById('fullName').value.trim();
+
+            if (!username || !password) {
+                showError('Пожалуйста, заполните все поля');
+                return;
+            }
+
+            try {
+                if (isRegisterMode) {
+                    // Регистрация
+                    const response = await fetch(`${API_URL}/auth/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password, full_name: fullName || username })
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        showSuccess('✅ Регистрация успешна! Теперь войдите в систему.');
+                        // Переключаем на режим входа через 2 секунды
+                        setTimeout(() => {
+                            isRegisterMode = false;
+                            updateForm();
+                            clearMessages();
+                            document.getElementById('username').value = username;
+                            document.getElementById('password').value = '';
+                        }, 2000);
+                    } else {
+                        showError(result.error || 'Ошибка регистрации');
+                    }
+                } else {
+                    // Вход
+                    const response = await fetch(`${API_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        // Сохраняем ID пользователя
+                        localStorage.setItem('userId', result.user.id);
+                        showSuccess('✅ Вход выполнен! Перенаправление...');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1000);
+                    } else {
+                        showError(result.error || 'Неверный логин или пароль');
+                    }
+                }
+            } catch (error) {
+                showError('Ошибка соединения с сервером: ' + error.message);
+            }
+        }
+
+        // Делаем функции глобальными
+        window.handleAuth = handleAuth;
+        window.toggleMode = toggleMode;
+    </script>
+</body>
+</html>

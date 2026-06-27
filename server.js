@@ -70,7 +70,7 @@ function saveDatabase() {
 }
 
 // ============================================
-// ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ
+// ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (ОБНОВЛЕННАЯ)
 // ============================================
 async function initDatabase() {
     try {
@@ -86,19 +86,25 @@ async function initDatabase() {
             console.log('✅ Создана новая база данных');
         }
 
-        // Создаем таблицы
+        // ============================================
+        // НОВЫЕ ТАБЛИЦЫ
+        // ============================================
+
+        // 1. Пользователи (добавлены поля role и online)
         db.run(`
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
+                username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                full_name TEXT NOT NULL,
-                phone TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                consent_152fz BOOLEAN DEFAULT 1
+                full_name TEXT,
+                role TEXT DEFAULT 'user',
+                online BOOLEAN DEFAULT 0,
+                last_seen DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
+        // 2. Книги (без изменений)
         db.run(`
             CREATE TABLE IF NOT EXISTS books (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,11 +120,13 @@ async function initDatabase() {
             )
         `);
 
+        // 3. Выдача книг (добавлен who_took)
         db.run(`
             CREATE TABLE IF NOT EXISTS loans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
                 book_id INTEGER,
+                who_took TEXT,
                 loan_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                 due_date DATETIME,
                 return_date DATETIME,
@@ -128,7 +136,21 @@ async function initDatabase() {
             )
         `);
 
+        // 4. Сессии (для отслеживания онлайн)
+        db.run(`
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                token TEXT UNIQUE,
+                last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        `);
+
         console.log('✅ Таблицы созданы/проверены');
+        
+        // Создаем супер-админа (создателя)
+        createSuperAdmin();
         addTestData();
         saveDatabase();
         
@@ -141,13 +163,36 @@ async function initDatabase() {
 }
 
 // ============================================
+// СОЗДАНИЕ СУПЕР-АДМИНА
+// ============================================
+function createSuperAdmin() {
+    try {
+        const result = db.exec("SELECT COUNT(*) as count FROM users WHERE role = 'super_admin'");
+        const count = result[0]?.values?.[0]?.[0] || 0;
+        
+        if (count === 0) {
+            console.log('👑 Создаем супер-админа (создателя)...');
+            const passwordHash = bcrypt.hashSync('admin123', 10);
+            const stmt = db.prepare(`
+                INSERT INTO users (username, password_hash, full_name, role)
+                VALUES (?, ?, ?, ?)
+            `);
+            stmt.run('creator', passwordHash, 'Создатель системы', 'super_admin');
+            console.log('✅ Создан супер-админ (creator / admin123)');
+        }
+    } catch (err) {
+        console.error('❌ Ошибка создания супер-админа:', err.message);
+    }
+}
+
+// ============================================
 // ТЕСТОВЫЕ ДАННЫЕ
 // ============================================
 function addTestData() {
     try {
+        // Проверяем книги
         const result = db.exec('SELECT COUNT(*) as count FROM books');
         const count = result[0]?.values?.[0]?.[0] || 0;
-        console.log(`📊 Книг в БД: ${count}`);
         
         if (count === 0) {
             console.log('📚 Добавляем тестовые книги...');
@@ -170,19 +215,19 @@ function addTestData() {
             console.log(`✅ Добавлено ${books.length} книг`);
         }
 
-        const userResult = db.exec('SELECT COUNT(*) as count FROM users');
+        // Проверяем обычного пользователя (для теста)
+        const userResult = db.exec("SELECT COUNT(*) as count FROM users WHERE role = 'user'");
         const userCount = userResult[0]?.values?.[0]?.[0] || 0;
-        console.log(`👤 Пользователей в БД: ${userCount}`);
         
         if (userCount === 0) {
-            console.log('👤 Создаем администратора...');
-            const passwordHash = bcrypt.hashSync('password123', 10);
+            console.log('👤 Создаем тестового пользователя...');
+            const passwordHash = bcrypt.hashSync('user123', 10);
             const stmt = db.prepare(`
-                INSERT INTO users (email, password_hash, full_name, phone)
+                INSERT INTO users (username, password_hash, full_name, role)
                 VALUES (?, ?, ?, ?)
             `);
-            stmt.run('admin@library.ru', passwordHash, 'Администратор', '+7(999)123-45-67');
-            console.log('✅ Создан администратор (admin@library.ru / password123)');
+            stmt.run('user', passwordHash, 'Обычный пользователь', 'user');
+            console.log('✅ Создан пользователь (user / user123)');
         }
     } catch (err) {
         console.error('❌ Ошибка добавления тестовых данных:', err.message);
@@ -238,20 +283,141 @@ function runQuery(query, params = []) {
 }
 
 // ============================================
-// ТЕСТОВЫЙ ЭНДПОИНТ (ДЛЯ ПРОВЕРКИ)
-// ============================================
-app.get('/api/test', (req, res) => {
-    res.json({ 
-        message: '✅ API работает!', 
-        time: new Date().toISOString(),
-        environment: isAmvera ? 'Amvera' : 'Local',
-        dbExists: fs.existsSync(dbPath)
-    });
-});
-
-// ============================================
 // API ЭНДПОИНТЫ
 // ============================================
+
+// ---------- АВТОРИЗАЦИЯ ----------
+
+// Регистрация
+app.post('/api/auth/register', (req, res) => {
+    try {
+        const { username, password, full_name } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Логин и пароль обязательны' });
+        }
+
+        // Проверяем, существует ли пользователь
+        const existing = getOne('SELECT * FROM users WHERE username = ?', [username]);
+        if (existing) {
+            return res.status(400).json({ error: 'Пользователь с таким логином уже существует' });
+        }
+
+        const passwordHash = bcrypt.hashSync(password, 10);
+        const result = runQuery(`
+            INSERT INTO users (username, password_hash, full_name, role)
+            VALUES (?, ?, ?, ?)
+        `, [username, passwordHash, full_name || username, 'user']);
+        
+        saveDatabase();
+        res.json({ 
+            id: result.lastInsertRowid,
+            message: 'Регистрация успешна! Теперь войдите в систему.'
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Вход
+app.post('/api/auth/login', (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Логин и пароль обязательны' });
+        }
+
+        const user = getOne('SELECT * FROM users WHERE username = ?', [username]);
+        if (!user) {
+            return res.status(401).json({ error: 'Неверный логин или пароль' });
+        }
+
+        const valid = bcrypt.compareSync(password, user.password_hash);
+        if (!valid) {
+            return res.status(401).json({ error: 'Неверный логин или пароль' });
+        }
+
+        // Обновляем статус онлайн
+        runQuery('UPDATE users SET online = 1, last_seen = datetime("now") WHERE id = ?', [user.id]);
+        saveDatabase();
+
+        delete user.password_hash;
+        res.json({ 
+            user,
+            message: 'Вход выполнен'
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Выход
+app.post('/api/auth/logout', (req, res) => {
+    try {
+        const { user_id } = req.body;
+        if (user_id) {
+            runQuery('UPDATE users SET online = 0 WHERE id = ?', [user_id]);
+            saveDatabase();
+        }
+        res.json({ message: 'Выход выполнен' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Проверка статуса пользователя
+app.get('/api/auth/status', (req, res) => {
+    try {
+        const { user_id } = req.query;
+        if (!user_id) {
+            return res.json({ isAuth: false });
+        }
+        
+        const user = getOne('SELECT id, username, full_name, role, online FROM users WHERE id = ?', [user_id]);
+        if (!user) {
+            return res.json({ isAuth: false });
+        }
+        
+        res.json({ isAuth: true, user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ---------- ПОЛЬЗОВАТЕЛИ ----------
+
+// Получить всех пользователей (для админки)
+app.get('/api/users', (req, res) => {
+    try {
+        const users = getAll('SELECT id, username, full_name, role, online, last_seen FROM users');
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Обновить роль пользователя (только для супер-админа)
+app.put('/api/users/:id/role', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role, admin_id } = req.body;
+        
+        // Проверяем, что админ - супер-админ
+        const admin = getOne('SELECT role FROM users WHERE id = ?', [admin_id]);
+        if (!admin || admin.role !== 'super_admin') {
+            return res.status(403).json({ error: 'Только создатель может выдавать права админа' });
+        }
+        
+        runQuery('UPDATE users SET role = ? WHERE id = ?', [role, id]);
+        saveDatabase();
+        res.json({ message: 'Роль пользователя обновлена' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ---------- КНИГИ ----------
 
 // Получить все книги
 app.get('/api/books', (req, res) => {
@@ -376,12 +542,14 @@ app.delete('/api/books/:id', (req, res) => {
     }
 });
 
-// Статистика
+// ---------- СТАТИСТИКА ----------
+
 app.get('/api/stats', (req, res) => {
     try {
         console.log('📊 Запрос /api/stats');
         const totalBooks = getOne('SELECT COUNT(*) as total FROM books')?.total || 0;
         const totalUsers = getOne('SELECT COUNT(*) as total FROM users')?.total || 0;
+        const onlineUsers = getOne('SELECT COUNT(*) as total FROM users WHERE online = 1')?.total || 0;
         const activeLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active"')?.total || 0;
         const overdueLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active" AND due_date < datetime("now")')?.total || 0;
         
@@ -394,11 +562,12 @@ app.get('/api/stats', (req, res) => {
             LIMIT 5
         `);
 
-        console.log(`📊 Статистика: книг=${totalBooks}, пользователей=${totalUsers}`);
+        console.log(`📊 Статистика: книг=${totalBooks}, пользователей=${totalUsers}, онлайн=${onlineUsers}`);
 
         res.json({
             totalBooks,
             totalUsers,
+            onlineUsers,
             activeLoans,
             overdueLoans,
             popularBooks
@@ -409,21 +578,26 @@ app.get('/api/stats', (req, res) => {
     }
 });
 
-// Выдать книгу
+// ---------- ВЫДАЧА КНИГ (ОБНОВЛЕННАЯ) ----------
+
+// Выдать книгу (с указанием кто взял)
 app.post('/api/loans', (req, res) => {
     try {
-        const { user_id, book_id, due_days = 14 } = req.body;
+        const { user_id, book_id, who_took, due_days = 14 } = req.body;
 
+        // Проверяем наличие книги
         const book = getOne('SELECT available_copies FROM books WHERE id = ?', [book_id]);
         if (!book || book.available_copies < 1) {
             return res.status(400).json({ error: 'Книга недоступна' });
         }
 
+        // Создаем запись о выдаче
         const result = runQuery(`
-            INSERT INTO loans (user_id, book_id, due_date)
-            VALUES (?, ?, datetime("now", "+" || ? || " days"))
-        `, [user_id, book_id, due_days]);
+            INSERT INTO loans (user_id, book_id, who_took, due_date)
+            VALUES (?, ?, ?, datetime("now", "+" || ? || " days"))
+        `, [user_id, book_id, who_took || 'Администратор', due_days]);
 
+        // Уменьшаем количество доступных копий
         runQuery('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', [book_id]);
         
         saveDatabase();
@@ -441,17 +615,20 @@ app.put('/api/loans/:id/return', (req, res) => {
     try {
         const { id } = req.params;
 
+        // Проверяем, активна ли выдача
         const loan = getOne('SELECT book_id FROM loans WHERE id = ? AND status = "active"', [id]);
         if (!loan) {
             return res.status(404).json({ error: 'Запись не найдена или уже возвращена' });
         }
 
+        // Обновляем статус выдачи
         runQuery(`
             UPDATE loans 
             SET return_date = datetime("now"), status = "returned" 
             WHERE id = ?
         `, [id]);
 
+        // Увеличиваем количество доступных копий
         runQuery('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?', [loan.book_id]);
         
         saveDatabase();
@@ -461,11 +638,16 @@ app.put('/api/loans/:id/return', (req, res) => {
     }
 });
 
-// Получить все выдачи
+// Получить все выдачи (с информацией о пользователях и книгах)
 app.get('/api/loans', (req, res) => {
     try {
         const loans = getAll(`
-            SELECT l.*, u.full_name as user_name, b.title as book_title 
+            SELECT 
+                l.*, 
+                u.username as user_name, 
+                u.full_name as user_full_name,
+                b.title as book_title,
+                b.author as book_author
             FROM loans l
             JOIN users u ON l.user_id = u.id
             JOIN books b ON l.book_id = b.id
@@ -477,85 +659,36 @@ app.get('/api/loans', (req, res) => {
     }
 });
 
-// Регистрация
-app.post('/api/users/register', (req, res) => {
+// Получить активные выдачи
+app.get('/api/loans/active', (req, res) => {
     try {
-        const { email, password, full_name, phone, consent_152fz } = req.body;
-
-        if (!email || !password || !full_name) {
-            return res.status(400).json({ error: 'Email, пароль и имя обязательны' });
-        }
-
-        const passwordHash = bcrypt.hashSync(password, 10);
-        try {
-            const result = runQuery(`
-                INSERT INTO users (email, password_hash, full_name, phone, consent_152fz)
-                VALUES (?, ?, ?, ?, ?)
-            `, [email, passwordHash, full_name, phone, consent_152fz || 1]);
-            
-            saveDatabase();
-            res.json({ 
-                id: result.lastInsertRowid,
-                message: 'Регистрация успешна'
-            });
-        } catch (err) {
-            if (err.message.includes('UNIQUE')) {
-                return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
-            }
-            throw err;
-        }
+        const loans = getAll(`
+            SELECT 
+                l.*, 
+                u.username as user_name, 
+                u.full_name as user_full_name,
+                b.title as book_title,
+                b.author as book_author
+            FROM loans l
+            JOIN users u ON l.user_id = u.id
+            JOIN books b ON l.book_id = b.id
+            WHERE l.status = 'active'
+            ORDER BY l.due_date ASC
+        `);
+        res.json(loans);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Авторизация
-app.post('/api/users/login', (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        const user = getOne('SELECT * FROM users WHERE email = ?', [email]);
-        if (!user) {
-            return res.status(401).json({ error: 'Неверный email или пароль' });
-        }
-
-        const valid = bcrypt.compareSync(password, user.password_hash);
-        if (!valid) {
-            return res.status(401).json({ error: 'Неверный email или пароль' });
-        }
-
-        delete user.password_hash;
-        res.json({ 
-            user,
-            message: 'Вход выполнен'
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Резервное копирование
-app.get('/api/backup', (req, res) => {
-    try {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backupDir = path.join(__dirname, 'backups');
-        const backupPath = path.join(backupDir, `library-backup-${timestamp}.db`);
-
-        if (!fs.existsSync(backupDir)) {
-            fs.mkdirSync(backupDir, { recursive: true });
-        }
-
-        saveDatabase();
-        fs.copyFileSync(dbPath, backupPath);
-        
-        res.json({ 
-            message: 'Бэкап создан',
-            file: backupPath,
-            timestamp: timestamp
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// ---------- ТЕСТОВЫЙ ЭНДПОИНТ ----------
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        message: '✅ API работает!', 
+        time: new Date().toISOString(),
+        environment: isAmvera ? 'Amvera' : 'Local',
+        dbExists: fs.existsSync(dbPath)
+    });
 });
 
 // ============================================
@@ -574,10 +707,10 @@ async function startServer() {
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Сервер запущен на порту ${PORT}`);
             console.log(`📚 Библиотечная система`);
-            console.log(`📧 admin@library.ru / password123`);
+            console.log(`👑 Супер-админ (создатель): creator / admin123`);
+            console.log(`👤 Тестовый пользователь: user / user123`);
             console.log(`📂 Путь к БД: ${dbPath}`);
             console.log(`🌍 Режим: ${isAmvera ? 'Amvera' : 'Локальный'}`);
-            console.log(`✅ Тестовый эндпоинт: /api/test`);
         });
     } catch (err) {
         console.error('❌ Ошибка запуска сервера:', err.message);

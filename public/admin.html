@@ -1,10 +1,48 @@
-<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Библиотека - Админка</title>
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            border-bottom: 1px solid #ecf0f1;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .user-item:last-child {
+            border-bottom: none;
+        }
+        .user-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .loan-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            border-bottom: 1px solid #ecf0f1;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .loan-item:last-child {
+            border-bottom: none;
+        }
+        .admin-user {
+            text-align: right;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            padding: 0.5rem 0;
+        }
+        .admin-user strong {
+            color: #2c3e50;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -15,6 +53,7 @@
                 <li><a href="/catalog.html">Каталог</a></li>
                 <li><a href="/admin.html" class="active">Админка</a></li>
             </ul>
+            <div class="admin-user" id="adminUser">👑 Администратор</div>
         </nav>
     </header>
 
@@ -24,14 +63,54 @@
                 <h1>⚙️ Администрирование</h1>
                 
                 <div class="admin-tabs">
-                    <button class="tab-btn active" onclick="showTab('add')">➕ Добавить</button>
+                    <button class="tab-btn active" onclick="showTab('give')">📤 Выдача</button>
+                    <button class="tab-btn" onclick="showTab('loans')">📋 Выдачи</button>
+                    <button class="tab-btn" onclick="showTab('users')">👥 Пользователи</button>
+                    <button class="tab-btn" onclick="showTab('add')">➕ Добавить</button>
                     <button class="tab-btn" onclick="showTab('manage')">📝 Управление</button>
-                    <button class="tab-btn" onclick="showTab('loans')">📋 Выдача</button>
                     <button class="tab-btn" onclick="showTab('backup')">💾 Бэкап</button>
                 </div>
 
-                <!-- Добавление книги -->
-                <div id="tab-add" class="tab-content active">
+                <!-- Вкладка: Выдача -->
+                <div id="tab-give" class="tab-content active">
+                    <h2>📤 Выдать книгу</h2>
+                    <div class="form-group">
+                        <label>Пользователь *</label>
+                        <select id="loanUserSelect" style="width: 100%; max-width: 500px; padding: 0.7rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Загрузка...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Книга *</label>
+                        <select id="loanBookSelect" style="width: 100%; max-width: 500px; padding: 0.7rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Загрузка...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Срок (дней)</label>
+                        <input type="number" id="loanDays" value="14" style="max-width: 100px;">
+                    </div>
+                    <button onclick="createLoan()" class="btn-primary">📤 Выдать книгу</button>
+                    <div id="loanGiveResult" style="margin-top: 1rem;"></div>
+
+                    <h3 style="margin-top: 2rem;">📋 Активные выдачи</h3>
+                    <div id="activeLoansList"></div>
+                </div>
+
+                <!-- Вкладка: Все выдачи -->
+                <div id="tab-loans" class="tab-content">
+                    <h2>📋 История выдач</h2>
+                    <div id="loansList"></div>
+                </div>
+
+                <!-- Вкладка: Пользователи -->
+                <div id="tab-users" class="tab-content">
+                    <h2>👥 Управление пользователями</h2>
+                    <div id="usersList"></div>
+                </div>
+
+                <!-- Вкладка: Добавление -->
+                <div id="tab-add" class="tab-content">
                     <h2>➕ Добавить книгу</h2>
                     <form id="addBookForm" onsubmit="addBook(event)">
                         <div class="form-group">
@@ -67,35 +146,13 @@
                     <div id="addResult"></div>
                 </div>
 
-                <!-- Управление -->
+                <!-- Вкладка: Управление -->
                 <div id="tab-manage" class="tab-content">
                     <h2>📝 Управление книгами</h2>
                     <div id="manageBooks"></div>
                 </div>
 
-                <!-- Выдача -->
-                <div id="tab-loans" class="tab-content">
-                    <h2>📋 Выдача книг</h2>
-                    <div class="form-group">
-                        <label>ID книги</label>
-                        <input type="number" id="loanBookId" placeholder="ID книги">
-                    </div>
-                    <div class="form-group">
-                        <label>ID пользователя</label>
-                        <input type="number" id="loanUserId" placeholder="ID пользователя">
-                    </div>
-                    <div class="form-group">
-                        <label>Срок (дней)</label>
-                        <input type="number" id="loanDays" value="14">
-                    </div>
-                    <button onclick="createLoan()" class="btn-primary">📤 Выдать книгу</button>
-                    <div id="loanResult"></div>
-                    
-                    <h3 style="margin-top: 2rem;">Активные выдачи</h3>
-                    <div id="loansList"></div>
-                </div>
-
-                <!-- Бэкап -->
+                <!-- Вкладка: Бэкап -->
                 <div id="tab-backup" class="tab-content">
                     <h2>💾 Резервное копирование</h2>
                     <button onclick="createBackup()" class="btn-primary">💾 Создать бэкап</button>

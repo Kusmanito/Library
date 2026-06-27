@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Библиотека</title>
+    <title>Библиотека - Главная</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
         <nav class="container">
             <div class="logo">📚 Библиотека</div>
-            <ul class="nav-links">
+            <ul class="nav-links" id="navLinks">
                 <li><a href="/" class="active">Главная</a></li>
                 <li><a href="/catalog.html">Каталог</a></li>
-                <li><a href="/admin.html">Админка</a></li>
+                <li><a href="/admin.html" id="adminLink">Админка</a></li>
             </ul>
+            <div class="auth-section" id="authSection">
+                <!-- Загружается через JS -->
+            </div>
         </nav>
     </header>
 
@@ -36,16 +39,16 @@
                         <div class="stat-label">Всего книг</div>
                     </div>
                     <div class="stat-card">
+                        <div class="stat-number" id="onlineUsers">0</div>
+                        <div class="stat-label">👤 Пользователей онлайн</div>
+                    </div>
+                    <div class="stat-card">
                         <div class="stat-number" id="totalUsers">0</div>
-                        <div class="stat-label">Читателей</div>
+                        <div class="stat-label">Всего читателей</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-number" id="activeLoans">0</div>
                         <div class="stat-label">Книг в выдаче</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="overdueLoans">0</div>
-                        <div class="stat-label">Просрочено</div>
                     </div>
                 </div>
             </div>
