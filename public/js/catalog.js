@@ -1,7 +1,4 @@
 const API_URL = '/api';
-let currentPage = 1;
-const ITEMS_PER_PAGE = 9;
-let totalBooks = 0;
 
 // Получение параметров URL
 function getUrlParams() {
@@ -14,33 +11,56 @@ function getUrlParams() {
     };
 }
 
-// Загрузка книг
+// Загрузка книг (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 async function loadBooks() {
     const params = getUrlParams();
-    currentPage = params.page || 1;
+    const currentPage = params.page || 1;
+    const ITEMS_PER_PAGE = 9;
 
     try {
-        const url = new URL(`${API_URL}/books`);
-        if (params.search) url.searchParams.set('search', params.search);
-        if (params.author) url.searchParams.set('author', params.author);
-        if (params.year) url.searchParams.set('year', params.year);
-        url.searchParams.set('limit', ITEMS_PER_PAGE);
-        url.searchParams.set('offset', (currentPage - 1) * ITEMS_PER_PAGE);
+        // ✅ ИСПРАВЛЕНИЕ: используем простой шаблон строки вместо new URL()
+        let url = `${API_URL}/books?limit=${ITEMS_PER_PAGE}&offset=${(currentPage - 1) * ITEMS_PER_PAGE}`;
+        
+        if (params.search) {
+            url += `&search=${encodeURIComponent(params.search)}`;
+        }
+        if (params.author) {
+            url += `&author=${encodeURIComponent(params.author)}`;
+        }
+        if (params.year) {
+            url += `&year=${encodeURIComponent(params.year)}`;
+        }
 
+        console.log('📖 Запрос к API:', url);
+        
         const response = await fetch(url);
+        console.log('📖 Статус ответа:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log('📖 Получены данные:', data);
 
-        totalBooks = data.total;
-        renderBooks(data.books);
-        renderPagination(data.total);
-        updateFilters(data.books);
+        if (data.books) {
+            renderBooks(data.books);
+            renderPagination(data.total, currentPage, ITEMS_PER_PAGE);
+        } else {
+            throw new Error('Нет данных о книгах');
+        }
     } catch (error) {
-        console.error('Ошибка загрузки книг:', error);
-        document.getElementById('catalogGrid').innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #e74c3c;">
-                ❌ Ошибка загрузки данных
-            </div>
-        `;
+        console.error('❌ Ошибка загрузки книг:', error);
+        const grid = document.getElementById('catalogGrid');
+        if (grid) {
+            grid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
+                    <p style="font-size: 1.2rem; color: #e74c3c;">❌ Ошибка загрузки данных</p>
+                    <p style="color: #7f8c8d; margin-top: 0.5rem;">${error.message}</p>
+                    <button onclick="loadBooks()" class="btn-primary" style="margin-top: 1rem;">🔄 Попробовать снова</button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -49,7 +69,7 @@ function renderBooks(books) {
     const grid = document.getElementById('catalogGrid');
     if (!grid) return;
 
-    if (books.length === 0) {
+    if (!books || books.length === 0) {
         grid.innerHTML = `
             <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
                 <p style="font-size: 1.2rem; color: #7f8c8d;">😕 Книги не найдены</p>
@@ -62,8 +82,8 @@ function renderBooks(books) {
         <div class="book-card">
             <div class="book-cover">📖</div>
             <div class="book-info">
-                <h3>${book.title}</h3>
-                <p class="author">${book.author}</p>
+                <h3>${book.title || 'Без названия'}</h3>
+                <p class="author">${book.author || 'Автор неизвестен'}</p>
                 <p class="year">${book.year || '—'}</p>
                 <span class="availability ${book.available_copies > 0 ? 'available' : 'unavailable'}">
                     ${book.available_copies > 0 ? `✅ Доступно (${book.available_copies})` : '❌ Нет в наличии'}
@@ -75,11 +95,11 @@ function renderBooks(books) {
 }
 
 // Пагинация
-function renderPagination(total) {
+function renderPagination(total, currentPage, itemsPerPage) {
     const container = document.getElementById('pagination');
     if (!container) return;
 
-    const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(total / itemsPerPage);
     if (totalPages <= 1) {
         container.innerHTML = '';
         return;
@@ -98,31 +118,6 @@ function goToPage(page) {
     const url = new URL(window.location.href);
     url.searchParams.set('page', page);
     window.location.href = url.toString();
-}
-
-// Обновление фильтров
-function updateFilters(books) {
-    // Авторы
-    const authorFilter = document.getElementById('authorFilter');
-    if (authorFilter) {
-        const authors = [...new Set(books.map(b => b.author))].sort();
-        const currentValue = authorFilter.value;
-        authorFilter.innerHTML = `<option value="">Все авторы</option>`;
-        authors.forEach(author => {
-            authorFilter.innerHTML += `<option value="${author}" ${author === currentValue ? 'selected' : ''}>${author}</option>`;
-        });
-    }
-
-    // Годы
-    const yearFilter = document.getElementById('yearFilter');
-    if (yearFilter) {
-        const years = [...new Set(books.map(b => b.year))].filter(y => y).sort((a, b) => b - a);
-        const currentValue = yearFilter.value;
-        yearFilter.innerHTML = `<option value="">Все годы</option>`;
-        years.forEach(year => {
-            yearFilter.innerHTML += `<option value="${year}" ${year == currentValue ? 'selected' : ''}>${year}</option>`;
-        });
-    }
 }
 
 // Фильтрация
@@ -159,3 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadBooks();
 });
+
+// Делаем функции глобальными для HTML
+window.filterBooks = filterBooks;
+window.clearFilters = clearFilters;
+window.goToPage = goToPage;
+window.loadBooks = loadBooks;
