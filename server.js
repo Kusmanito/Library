@@ -11,28 +11,25 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// ============================================
-// ПУТЬ К СТАТИЧЕСКИМ ФАЙЛАМ
-// ============================================
 app.use(express.static(path.join(__dirname, 'public')));
+
 console.log(`📁 Папка public: ${path.join(__dirname, 'public')}`);
 
 // ============================================
-// НАСТРОЙКА ПУТИ К БАЗЕ ДАННЫХ ДЛЯ AMVERA
+// НАСТРОЙКА ПУТИ К БАЗЕ ДАННЫХ
 // ============================================
-let dbPath;
-if (process.env.AMVERA_DATA_PATH) {
-    // На Amvera используем папку /data
-    dbPath = path.join(process.env.AMVERA_DATA_PATH, 'library.db');
-} else {
-    // Локально используем папку ./database
-    dbPath = path.join(__dirname, 'database', 'library.db');
-}
+// Проверяем, где мы находимся
+const isAmvera = !!process.env.AMVERA_DATA_PATH;
+console.log(`🌍 Режим: ${isAmvera ? 'Amvera' : 'Локальный'}`);
+
+// Путь к БД
+const dbPath = isAmvera 
+    ? path.join(process.env.AMVERA_DATA_PATH, 'library.db')
+    : path.join(__dirname, 'database', 'library.db');
 
 console.log(`📂 Путь к БД: ${dbPath}`);
 
-// Создаем папку для БД, если её нет
+// Создаем папку для БД
 const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
@@ -42,17 +39,19 @@ if (!fs.existsSync(dbDir)) {
 let db = null;
 
 // ============================================
-// ЗАГРУЗКА И СОХРАНЕНИЕ БАЗЫ ДАННЫХ
+// РАБОТА С БАЗОЙ ДАННЫХ
 // ============================================
 function loadDatabase() {
     try {
         if (fs.existsSync(dbPath)) {
             const data = fs.readFileSync(dbPath);
+            console.log(`📥 Загружено ${data.length} байт из БД`);
             return new Uint8Array(data);
         }
+        console.log('ℹ️ Файл БД не найден, будет создан новый');
         return null;
     } catch (err) {
-        console.error('Ошибка загрузки БД:', err.message);
+        console.error('❌ Ошибка загрузки БД:', err.message);
         return null;
     }
 }
@@ -63,7 +62,7 @@ function saveDatabase() {
             const data = db.export();
             const buffer = Buffer.from(data);
             fs.writeFileSync(dbPath, buffer);
-            console.log('✅ База данных сохранена');
+            console.log(`✅ База данных сохранена (${data.length} байт)`);
             return true;
         }
         return false;
@@ -78,6 +77,7 @@ function saveDatabase() {
 // ============================================
 async function initDatabase() {
     try {
+        console.log('🔄 Инициализация базы данных...');
         const SQL = await initSqlJs();
         const data = loadDatabase();
         
@@ -89,52 +89,61 @@ async function initDatabase() {
             console.log('✅ Создана новая база данных');
         }
 
-        // Создаем таблицы
-        db.run(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                full_name TEXT NOT NULL,
-                phone TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                consent_152fz BOOLEAN DEFAULT 1
-            )
-        `);
+        // Проверяем, есть ли таблицы
+        try {
+            db.exec('SELECT * FROM books LIMIT 1');
+            console.log('✅ Таблицы уже существуют');
+        } catch (e) {
+            console.log('🔄 Создаем таблицы...');
+            // Создаем таблицы
+            db.run(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    full_name TEXT NOT NULL,
+                    phone TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    consent_152fz BOOLEAN DEFAULT 1
+                )
+            `);
 
-        db.run(`
-            CREATE TABLE IF NOT EXISTS books (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                isbn TEXT UNIQUE,
-                title TEXT NOT NULL,
-                author TEXT NOT NULL,
-                publisher TEXT,
-                year INTEGER,
-                description TEXT,
-                total_copies INTEGER DEFAULT 1,
-                available_copies INTEGER DEFAULT 1,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
+            db.run(`
+                CREATE TABLE IF NOT EXISTS books (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    isbn TEXT UNIQUE,
+                    title TEXT NOT NULL,
+                    author TEXT NOT NULL,
+                    publisher TEXT,
+                    year INTEGER,
+                    description TEXT,
+                    total_copies INTEGER DEFAULT 1,
+                    available_copies INTEGER DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
 
-        db.run(`
-            CREATE TABLE IF NOT EXISTS loans (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                book_id INTEGER,
-                loan_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                due_date DATETIME,
-                return_date DATETIME,
-                status TEXT DEFAULT 'active',
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (book_id) REFERENCES books(id)
-            )
-        `);
+            db.run(`
+                CREATE TABLE IF NOT EXISTS loans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    book_id INTEGER,
+                    loan_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    due_date DATETIME,
+                    return_date DATETIME,
+                    status TEXT DEFAULT 'active',
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (book_id) REFERENCES books(id)
+                )
+            `);
+            console.log('✅ Таблицы созданы');
+        }
 
-        console.log('✅ Таблицы созданы/проверены');
+        // Добавляем тестовые данные, если их нет
         addTestData();
         saveDatabase();
         
+        console.log('✅ Инициализация БД завершена');
         return db;
     } catch (err) {
         console.error('❌ Ошибка инициализации БД:', err.message);
@@ -150,14 +159,16 @@ function addTestData() {
         // Проверяем, есть ли книги
         const result = db.exec('SELECT COUNT(*) as count FROM books');
         const count = result[0]?.values?.[0]?.[0] || 0;
+        console.log(`📊 Книг в БД: ${count}`);
         
         if (count === 0) {
+            console.log('📚 Добавляем тестовые книги...');
             const books = [
-                ['978-5-17-118914-3', 'Война и мир', 'Лев Толстой', 'АСТ', 1869, 'Великий роман о жизни русского общества в эпоху наполеоновских войн.', 5, 3],
-                ['978-5-04-118923-9', 'Преступление и наказание', 'Фёдор Достоевский', 'Эксмо', 1866, 'Роман о моральных и психологических последствиях преступления.', 4, 2],
-                ['978-5-17-089876-5', 'Мастер и Маргарита', 'Михаил Булгаков', 'АСТ', 1967, 'Роман-мистерия о любви, творчестве и дьяволе в советской Москве.', 3, 1],
-                ['978-5-17-118886-8', '1984', 'Джордж Оруэлл', 'АСТ', 1949, 'Роман-антиутопия о тоталитарном обществе и контроле над личностью.', 2, 2],
-                ['978-5-04-107984-4', 'Тихий Дон', 'Михаил Шолохов', 'Эксмо', 1940, 'Эпопея о жизни донского казачества в годы Первой мировой и Гражданской войн.', 3, 0]
+                ['978-5-17-118914-3', 'Война и мир', 'Лев Толстой', 'АСТ', 1869, 'Великий роман о жизни русского общества.', 5, 3],
+                ['978-5-04-118923-9', 'Преступление и наказание', 'Фёдор Достоевский', 'Эксмо', 1866, 'Роман о моральных последствиях преступления.', 4, 2],
+                ['978-5-17-089876-5', 'Мастер и Маргарита', 'Михаил Булгаков', 'АСТ', 1967, 'Роман-мистерия о любви и дьяволе.', 3, 1],
+                ['978-5-17-118886-8', '1984', 'Джордж Оруэлл', 'АСТ', 1949, 'Роман-антиутопия о тоталитарном обществе.', 2, 2],
+                ['978-5-04-107984-4', 'Тихий Дон', 'Михаил Шолохов', 'Эксмо', 1940, 'Эпопея о донском казачестве.', 3, 0]
             ];
 
             const stmt = db.prepare(`
@@ -168,15 +179,16 @@ function addTestData() {
             for (const book of books) {
                 stmt.run(book);
             }
-
-            console.log('✅ Добавлены тестовые книги');
+            console.log(`✅ Добавлено ${books.length} книг`);
         }
 
         // Проверяем пользователей
         const userResult = db.exec('SELECT COUNT(*) as count FROM users');
         const userCount = userResult[0]?.values?.[0]?.[0] || 0;
+        console.log(`👤 Пользователей в БД: ${userCount}`);
         
         if (userCount === 0) {
+            console.log('👤 Создаем администратора...');
             const passwordHash = bcrypt.hashSync('password123', 10);
             const stmt = db.prepare(`
                 INSERT INTO users (email, password_hash, full_name, phone)
@@ -204,7 +216,7 @@ function getAll(query, params = []) {
         stmt.free();
         return results;
     } catch (err) {
-        console.error('Ошибка getAll:', err.message);
+        console.error('❌ Ошибка getAll:', err.message);
         return [];
     }
 }
@@ -221,7 +233,7 @@ function getOne(query, params = []) {
         stmt.free();
         return null;
     } catch (err) {
-        console.error('Ошибка getOne:', err.message);
+        console.error('❌ Ошибка getOne:', err.message);
         return null;
     }
 }
@@ -233,7 +245,7 @@ function runQuery(query, params = []) {
         stmt.free();
         return { changes: db.getRowsModified(), lastInsertRowid: db.lastInsertRowId };
     } catch (err) {
-        console.error('Ошибка runQuery:', err.message);
+        console.error('❌ Ошибка runQuery:', err.message);
         throw err;
     }
 }
@@ -245,6 +257,7 @@ function runQuery(query, params = []) {
 // Получить все книги
 app.get('/api/books', (req, res) => {
     try {
+        console.log('📖 Запрос /api/books');
         const { search, author, year, limit = 20, offset = 0 } = req.query;
         
         let query = 'SELECT * FROM books WHERE 1=1';
@@ -273,6 +286,7 @@ app.get('/api/books', (req, res) => {
         params.push(parseInt(limit), parseInt(offset));
 
         const books = getAll(query, params);
+        console.log(`📖 Найдено книг: ${books.length}`);
 
         res.json({
             books: books,
@@ -281,6 +295,7 @@ app.get('/api/books', (req, res) => {
             offset: parseInt(offset)
         });
     } catch (err) {
+        console.error('❌ Ошибка /api/books:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -366,6 +381,7 @@ app.delete('/api/books/:id', (req, res) => {
 // Статистика
 app.get('/api/stats', (req, res) => {
     try {
+        console.log('📊 Запрос /api/stats');
         const totalBooks = getOne('SELECT COUNT(*) as total FROM books')?.total || 0;
         const totalUsers = getOne('SELECT COUNT(*) as total FROM users')?.total || 0;
         const activeLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active"')?.total || 0;
@@ -380,6 +396,8 @@ app.get('/api/stats', (req, res) => {
             LIMIT 5
         `);
 
+        console.log(`📊 Статистика: книг=${totalBooks}, пользователей=${totalUsers}`);
+
         res.json({
             totalBooks,
             totalUsers,
@@ -388,6 +406,7 @@ app.get('/api/stats', (req, res) => {
             popularBooks
         });
     } catch (err) {
+        console.error('❌ Ошибка /api/stats:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -550,7 +569,6 @@ app.get('/api/backup', (req, res) => {
 // ============================================
 // СТАТИЧЕСКИЕ ФАЙЛЫ (ОБРАБОТЧИК 404)
 // ============================================
-// Если файл не найден в public, отдаем index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -561,12 +579,12 @@ app.get('*', (req, res) => {
 async function startServer() {
     try {
         await initDatabase();
-        app.listen(PORT, () => {
+        app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Сервер запущен на порту ${PORT}`);
             console.log(`📚 Библиотечная система`);
-            console.log(`🔗 http://localhost:${PORT}`);
             console.log(`📧 admin@library.ru / password123`);
             console.log(`📂 Путь к БД: ${dbPath}`);
+            console.log(`🌍 Режим: ${isAmvera ? 'Amvera' : 'Локальный'}`);
         });
     } catch (err) {
         console.error('❌ Ошибка запуска сервера:', err.message);

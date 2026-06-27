@@ -5,7 +5,8 @@ meta:
     version: 18
 
 build:
-  additionalCommands: npm install
+  additionalCommands: |
+    npm install
 
 run:
   scriptName: server.js
