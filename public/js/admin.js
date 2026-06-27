@@ -31,12 +31,38 @@ async function checkAdminAccess() {
         }
 
         document.getElementById('adminUser').textContent = `👑 ${currentUser.full_name || currentUser.username}`;
+        updateNavigation(currentUser);
         return true;
     } catch (error) {
         console.error('Ошибка проверки доступа:', error);
         window.location.href = '/login.html';
         return false;
     }
+}
+
+function updateNavigation(user) {
+    const navLinks = document.getElementById('navLinks');
+    if (!navLinks) return;
+
+    const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+    const isAuth = !!user;
+
+    const currentPage = window.location.pathname;
+
+    let html = '';
+
+    html += `<li><a href="/" class="${currentPage === '/' || currentPage === '/index.html' ? 'active' : ''}">Главная</a></li>`;
+    html += `<li><a href="/catalog.html" class="${currentPage.includes('catalog') ? 'active' : ''}">Каталог</a></li>`;
+
+    if (isAdmin) {
+        html += `<li><a href="/admin.html" class="${currentPage.includes('admin') ? 'active' : ''}">Админка</a></li>`;
+    }
+
+    if (isAuth) {
+        html += `<li><a href="/profile.html" class="${currentPage.includes('profile') ? 'active' : ''}">👤 Профиль</a></li>`;
+    }
+
+    navLinks.innerHTML = html;
 }
 
 function showTab(tabId) {

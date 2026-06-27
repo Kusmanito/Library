@@ -10,10 +10,8 @@
     <header>
         <nav class="container">
             <div class="logo">📚 Библиотека</div>
-            <ul class="nav-links">
-                <li><a href="/">Главная</a></li>
-                <li><a href="/catalog.html" class="active">Каталог</a></li>
-                <li><a href="/admin.html">Админка</a></li>
+            <ul class="nav-links" id="navLinks">
+                <!-- Загружается через JS -->
             </ul>
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Поиск книг..." onkeyup="filterBooks()">
@@ -37,13 +35,8 @@
                     <button onclick="clearFilters()" class="btn-secondary">Сбросить</button>
                 </div>
 
-                <div class="books-grid" id="catalogGrid">
-                    <!-- Загружается через JS -->
-                </div>
-
-                <div class="pagination" id="pagination">
-                    <!-- Загружается через JS -->
-                </div>
+                <div class="books-grid" id="catalogGrid"></div>
+                <div class="pagination" id="pagination"></div>
             </div>
         </section>
     </main>

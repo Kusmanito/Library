@@ -61,10 +61,24 @@ async function loadUserInfo() {
     if (!currentUser) return;
 
     container.innerHTML = `
-        <p><strong>👤 Имя:</strong> ${currentUser.full_name || currentUser.username}</p>
-        <p><strong>🔑 Логин:</strong> ${currentUser.username}</p>
-        <p><strong>🛡️ Роль:</strong> ${currentUser.role === 'super_admin' ? 'Создатель' : currentUser.role === 'admin' ? 'Администратор' : 'Пользователь'}</p>
-        <p><strong>🟢 Статус:</strong> ${currentUser.online ? 'Онлайн' : 'Офлайн'}</p>
+        <div class="profile-info" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="info-item" style="padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                <div class="label" style="font-size: 0.85rem; color: #7f8c8d;">👤 Имя</div>
+                <div class="value" style="font-size: 1.1rem; font-weight: 500; color: #2c3e50;">${currentUser.full_name || currentUser.username}</div>
+            </div>
+            <div class="info-item" style="padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                <div class="label" style="font-size: 0.85rem; color: #7f8c8d;">🔑 Логин</div>
+                <div class="value" style="font-size: 1.1rem; font-weight: 500; color: #2c3e50;">${currentUser.username}</div>
+            </div>
+            <div class="info-item" style="padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                <div class="label" style="font-size: 0.85rem; color: #7f8c8d;">🛡️ Роль</div>
+                <div class="value" style="font-size: 1.1rem; font-weight: 500; color: #2c3e50;">${currentUser.role === 'super_admin' ? 'Создатель' : currentUser.role === 'admin' ? 'Администратор' : 'Пользователь'}</div>
+            </div>
+            <div class="info-item" style="padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                <div class="label" style="font-size: 0.85rem; color: #7f8c8d;">🟢 Статус</div>
+                <div class="value" style="font-size: 1.1rem; font-weight: 500; color: ${currentUser.online ? '#27ae60' : '#95a5a6'};">${currentUser.online ? 'Онлайн' : 'Офлайн'}</div>
+            </div>
+        </div>
     `;
 }
 
@@ -79,22 +93,29 @@ async function loadMyLoans() {
         const myLoans = loans.filter(l => l.user_id === currentUser.id && l.status === 'active');
         
         if (myLoans.length === 0) {
-            container.innerHTML = '<p style="color: #7f8c8d;">У вас нет активных выдач</p>';
+            container.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                    <p style="font-size: 1.2rem;">📚 У вас нет активных выдач</p>
+                    <p style="font-size: 0.9rem;">Все книги возвращены или вы ничего не брали</p>
+                </div>
+            `;
             return;
         }
 
         container.innerHTML = myLoans.map(loan => `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px; background: ${new Date(loan.due_date) < new Date() ? '#fff5f5' : 'white'}; border-radius: 8px; margin-bottom: 8px;">
                 <div>
-                    <strong>${loan.book_title}</strong>
-                    <span style="color: #7f8c8d;">— ${loan.book_author}</span>
-                    <span style="color: #95a5a6; font-size: 0.85rem;">
-                        Выдал: ${loan.who_took || 'Администратор'} | 
-                        ${new Date(loan.loan_date).toLocaleDateString()} — до ${new Date(loan.due_date).toLocaleDateString()}
-                    </span>
-                    ${new Date(loan.due_date) < new Date() ? '<span style="color: #e74c3c;"> ⚠️ Просрочено! Верните книгу!</span>' : ''}
+                    <strong style="font-size: 1.1rem;">${loan.book_title}</strong>
+                    <span style="color: #7f8c8d; margin-left: 0.5rem;">${loan.book_author}</span>
+                    <div style="margin-top: 4px; font-size: 0.9rem; color: #555;">
+                        📅 Выдал: ${loan.who_took || 'Администратор'}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #555;">
+                        📆 Взята: ${new Date(loan.loan_date).toLocaleDateString()} 
+                        <span style="color: #e74c3c; font-weight: 600;">⏰ Вернуть до: ${new Date(loan.due_date).toLocaleDateString()}</span>
+                    </div>
+                    ${new Date(loan.due_date) < new Date() ? '<div style="color: #e74c3c; font-weight: bold; margin-top: 4px;">⚠️ ВНИМАНИЕ! Срок возврата ПРОШЁЛ! Срочно верните книгу!</div>' : ''}
                 </div>
-                <button onclick="returnBook(${loan.id})" class="btn-success" style="background: #27ae60; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">↩ Вернуть</button>
             </div>
         `).join('');
     } catch (error) {
@@ -103,25 +124,5 @@ async function loadMyLoans() {
     }
 }
 
-async function returnBook(loanId) {
-    if (!confirm('Подтвердите возврат книги')) return;
-
-    try {
-        const response = await fetch(`${API_URL}/loans/${loanId}/return`, {
-            method: 'PUT'
-        });
-
-        if (response.ok) {
-            loadMyLoans();
-        } else {
-            const result = await response.json();
-            alert(result.error || 'Ошибка возврата');
-        }
-    } catch (error) {
-        alert('Ошибка: ' + error.message);
-    }
-}
-
 document.addEventListener('DOMContentLoaded', checkAuth);
 window.logout = logout;
-window.returnBook = returnBook;

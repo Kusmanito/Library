@@ -5,7 +5,7 @@ async function checkAuth() {
     try {
         const userId = localStorage.getItem('userId');
         if (!userId) {
-            updateAdminLink(null);
+            updateNavigation(null);
             return;
         }
 
@@ -14,26 +14,40 @@ async function checkAuth() {
         
         if (data.isAuth) {
             currentUser = data.user;
-            updateAdminLink(currentUser);
+            updateNavigation(currentUser);
         } else {
             localStorage.removeItem('userId');
-            updateAdminLink(null);
+            updateNavigation(null);
         }
     } catch (error) {
         console.error('Ошибка проверки авторизации:', error);
-        updateAdminLink(null);
+        updateNavigation(null);
     }
 }
 
-function updateAdminLink(user) {
-    const link = document.getElementById('adminLink');
-    if (!link) return;
+function updateNavigation(user) {
+    const navLinks = document.getElementById('navLinks');
+    if (!navLinks) return;
 
-    if (user && (user.role === 'admin' || user.role === 'super_admin')) {
-        link.style.display = 'block';
-    } else {
-        link.style.display = 'none';
+    const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+    const isAuth = !!user;
+
+    const currentPage = window.location.pathname;
+
+    let html = '';
+
+    html += `<li><a href="/" class="${currentPage === '/' || currentPage === '/index.html' ? 'active' : ''}">Главная</a></li>`;
+    html += `<li><a href="/catalog.html" class="${currentPage.includes('catalog') ? 'active' : ''}">Каталог</a></li>`;
+
+    if (isAdmin) {
+        html += `<li><a href="/admin.html" class="${currentPage.includes('admin') ? 'active' : ''}">Админка</a></li>`;
     }
+
+    if (isAuth) {
+        html += `<li><a href="/profile.html" class="${currentPage.includes('profile') ? 'active' : ''}">👤 Профиль</a></li>`;
+    }
+
+    navLinks.innerHTML = html;
 }
 
 function getUrlParams() {

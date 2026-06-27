@@ -743,3 +743,55 @@ footer p {
         grid-template-columns: 1fr;
     }
 }
+/* Добавь в конец файла */
+
+/* Выравнивание кнопок в админке */
+.admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 2rem;
+    align-items: center;
+}
+
+.admin-tabs .tab-btn {
+    background: transparent;
+    border: 2px solid #ecf0f1;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    color: #7f8c8d;
+    font-size: 14px;
+    line-height: 1.4;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.admin-tabs .tab-btn:hover {
+    background: #f0f2f5;
+    color: #2c3e50;
+    border-color: #bdc3c7;
+}
+
+.admin-tabs .tab-btn.active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border-color: #3498db;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+/* Адаптивность для кнопок */
+@media (max-width: 768px) {
+    .admin-tabs .tab-btn {
+        width: 100%;
+        text-align: center;
+        white-space: normal;
+        height: auto;
+        padding: 12px 20px;
+    }
+}

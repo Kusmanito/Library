@@ -1,17 +1,12 @@
 const API_URL = '/api';
 let currentUser = null;
 
-// ============================================
-// АВТОРИЗАЦИЯ
-// ============================================
-
 async function checkAuth() {
     try {
         const userId = localStorage.getItem('userId');
         if (!userId) {
             updateAuthUI(null);
-            updateAdminLink(null);
-            updateProfileLink(null);
+            updateNavigation(null);
             return;
         }
 
@@ -21,19 +16,16 @@ async function checkAuth() {
         if (data.isAuth) {
             currentUser = data.user;
             updateAuthUI(currentUser);
-            updateAdminLink(currentUser);
-            updateProfileLink(currentUser);
+            updateNavigation(currentUser);
         } else {
             localStorage.removeItem('userId');
             updateAuthUI(null);
-            updateAdminLink(null);
-            updateProfileLink(null);
+            updateNavigation(null);
         }
     } catch (error) {
         console.error('Ошибка проверки авторизации:', error);
         updateAuthUI(null);
-        updateAdminLink(null);
-        updateProfileLink(null);
+        updateNavigation(null);
     }
 }
 
@@ -54,26 +46,35 @@ function updateAuthUI(user) {
     }
 }
 
-function updateAdminLink(user) {
-    const link = document.getElementById('adminLink');
-    if (!link) return;
+function updateNavigation(user) {
+    const navLinks = document.getElementById('navLinks');
+    if (!navLinks) return;
 
-    if (user && (user.role === 'admin' || user.role === 'super_admin')) {
-        link.style.display = 'block';
-    } else {
-        link.style.display = 'none';
+    const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+    const isAuth = !!user;
+
+    // Определяем, на какой мы странице
+    const currentPage = window.location.pathname;
+
+    let html = '';
+
+    // Главная всегда видна
+    html += `<li><a href="/" class="${currentPage === '/' || currentPage === '/index.html' ? 'active' : ''}">Главная</a></li>`;
+
+    // Каталог всегда виден
+    html += `<li><a href="/catalog.html" class="${currentPage.includes('catalog') ? 'active' : ''}">Каталог</a></li>`;
+
+    // Админка только для админов
+    if (isAdmin) {
+        html += `<li><a href="/admin.html" class="${currentPage.includes('admin') ? 'active' : ''}">Админка</a></li>`;
     }
-}
 
-function updateProfileLink(user) {
-    const link = document.getElementById('profileLink');
-    if (!link) return;
-
-    if (user) {
-        link.style.display = 'block';
-    } else {
-        link.style.display = 'none';
+    // Профиль только для авторизованных
+    if (isAuth) {
+        html += `<li><a href="/profile.html" class="${currentPage.includes('profile') ? 'active' : ''}">👤 Профиль</a></li>`;
     }
+
+    navLinks.innerHTML = html;
 }
 
 async function logout() {
@@ -89,17 +90,12 @@ async function logout() {
         localStorage.removeItem('userId');
         currentUser = null;
         updateAuthUI(null);
-        updateAdminLink(null);
-        updateProfileLink(null);
+        updateNavigation(null);
         loadStats();
     } catch (error) {
         console.error('Ошибка выхода:', error);
     }
 }
-
-// ============================================
-// СТАТИСТИКА
-// ============================================
 
 async function loadStats() {
     try {
@@ -135,20 +131,12 @@ async function loadStats() {
     }
 }
 
-// ============================================
-// ПОИСК
-// ============================================
-
 function searchBooks() {
     const query = document.getElementById('searchInput')?.value.trim();
     if (query) {
         window.location.href = `/catalog.html?search=${encodeURIComponent(query)}`;
     }
 }
-
-// ============================================
-// ИНИЦИАЛИЗАЦИЯ
-// ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
