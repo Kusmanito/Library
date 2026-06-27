@@ -1,18 +1,16 @@
 const API_URL = '/api';
+let currentUser = null;
 
 // ============================================
 // АВТОРИЗАЦИЯ
 // ============================================
 
-// Текущий пользователь
-let currentUser = null;
-
-// Проверка статуса авторизации
 async function checkAuth() {
     try {
         const userId = localStorage.getItem('userId');
         if (!userId) {
             updateAuthUI(null);
+            updateAdminLink(null);
             return;
         }
 
@@ -26,14 +24,15 @@ async function checkAuth() {
         } else {
             localStorage.removeItem('userId');
             updateAuthUI(null);
+            updateAdminLink(null);
         }
     } catch (error) {
         console.error('Ошибка проверки авторизации:', error);
         updateAuthUI(null);
+        updateAdminLink(null);
     }
 }
 
-// Обновление UI авторизации
 function updateAuthUI(user) {
     const section = document.getElementById('authSection');
     if (!section) return;
@@ -51,7 +50,6 @@ function updateAuthUI(user) {
     }
 }
 
-// Обновление ссылки на админку
 function updateAdminLink(user) {
     const link = document.getElementById('adminLink');
     if (!link) return;
@@ -63,7 +61,6 @@ function updateAdminLink(user) {
     }
 }
 
-// Выход
 async function logout() {
     try {
         const userId = localStorage.getItem('userId');
@@ -78,7 +75,7 @@ async function logout() {
         currentUser = null;
         updateAuthUI(null);
         updateAdminLink(null);
-        loadStats(); // Обновляем статистику
+        loadStats();
     } catch (error) {
         console.error('Ошибка выхода:', error);
     }
@@ -131,10 +128,6 @@ async function loadStats() {
     }
 }
 
-// ============================================
-// ПОИСК
-// ============================================
-
 function searchBooks() {
     const query = document.getElementById('searchInput')?.value.trim();
     if (query) {
@@ -158,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Делаем функции глобальными
 window.searchBooks = searchBooks;
 window.logout = logout;
 window.loadStats = loadStats;

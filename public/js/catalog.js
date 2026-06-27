@@ -1,6 +1,49 @@
 const API_URL = '/api';
+let currentUser = null;
 
-// Получение параметров URL
+// ============================================
+// АВТОРИЗАЦИЯ ДЛЯ КАТАЛОГА
+// ============================================
+
+async function checkAuth() {
+    try {
+        const userId = localStorage.getItem('userId');
+        if (!userId) {
+            updateAdminLink(null);
+            return;
+        }
+
+        const response = await fetch(`${API_URL}/auth/status?user_id=${userId}`);
+        const data = await response.json();
+        
+        if (data.isAuth) {
+            currentUser = data.user;
+            updateAdminLink(currentUser);
+        } else {
+            localStorage.removeItem('userId');
+            updateAdminLink(null);
+        }
+    } catch (error) {
+        console.error('Ошибка проверки авторизации:', error);
+        updateAdminLink(null);
+    }
+}
+
+function updateAdminLink(user) {
+    const link = document.getElementById('adminLink');
+    if (!link) return;
+
+    if (user && (user.role === 'admin' || user.role === 'super_admin')) {
+        link.style.display = 'block';
+    } else {
+        link.style.display = 'none';
+    }
+}
+
+// ============================================
+// КАТАЛОГ
+// ============================================
+
 function getUrlParams() {
     const params = new URLSearchParams(window.location.search);
     return {
@@ -11,14 +54,12 @@ function getUrlParams() {
     };
 }
 
-// Загрузка книг (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 async function loadBooks() {
     const params = getUrlParams();
     const currentPage = params.page || 1;
     const ITEMS_PER_PAGE = 9;
 
     try {
-        // ✅ ИСПРАВЛЕНИЕ: используем простой шаблон строки вместо new URL()
         let url = `${API_URL}/books?limit=${ITEMS_PER_PAGE}&offset=${(currentPage - 1) * ITEMS_PER_PAGE}`;
         
         if (params.search) {
@@ -64,7 +105,6 @@ async function loadBooks() {
     }
 }
 
-// Рендер книг
 function renderBooks(books) {
     const grid = document.getElementById('catalogGrid');
     if (!grid) return;
@@ -94,7 +134,6 @@ function renderBooks(books) {
     `).join('');
 }
 
-// Пагинация
 function renderPagination(total, currentPage, itemsPerPage) {
     const container = document.getElementById('pagination');
     if (!container) return;
@@ -112,7 +151,6 @@ function renderPagination(total, currentPage, itemsPerPage) {
     container.innerHTML = html;
 }
 
-// Переход на страницу
 function goToPage(page) {
     const params = getUrlParams();
     const url = new URL(window.location.href);
@@ -120,7 +158,6 @@ function goToPage(page) {
     window.location.href = url.toString();
 }
 
-// Фильтрация
 function filterBooks() {
     const params = getUrlParams();
     const searchInput = document.getElementById('searchInput');
@@ -140,13 +177,17 @@ function filterBooks() {
     window.location.href = url.toString();
 }
 
-// Сброс фильтров
 function clearFilters() {
     window.location.href = '/catalog.html';
 }
 
-// Инициализация
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
 document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+    
     const params = getUrlParams();
     const searchInput = document.getElementById('searchInput');
     if (searchInput && params.search) {
@@ -155,7 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBooks();
 });
 
-// Делаем функции глобальными для HTML
 window.filterBooks = filterBooks;
 window.clearFilters = clearFilters;
 window.goToPage = goToPage;
