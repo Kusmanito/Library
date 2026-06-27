@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">📚 Библиотека</div>
+            <ul class="nav-links">
+                <li><a href="/">Главная</a></li>
+                <li><a href="/catalog.html">Каталог</a></li>
+                <li><a href="/profile.html" class="active">👤 Профиль</a></li>
+            </ul>
+            <div class="auth-section" id="authSection"></div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container" style="max-width: 900px; margin: 2rem auto;">
+            <h1>👤 Личный кабинет</h1>
+            
+            <div id="userInfo" style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+                <!-- Загружается через JS -->
+            </div>
+
+            <h2>📚 Мои книги</h2>
+            <div id="myLoans" style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <!-- Загружается через JS -->
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2026 Библиотечная система. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script src="/js/profile.js"></script>
+</body>
+</html>

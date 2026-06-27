@@ -11,6 +11,7 @@ async function checkAuth() {
         if (!userId) {
             updateAuthUI(null);
             updateAdminLink(null);
+            updateProfileLink(null);
             return;
         }
 
@@ -21,15 +22,18 @@ async function checkAuth() {
             currentUser = data.user;
             updateAuthUI(currentUser);
             updateAdminLink(currentUser);
+            updateProfileLink(currentUser);
         } else {
             localStorage.removeItem('userId');
             updateAuthUI(null);
             updateAdminLink(null);
+            updateProfileLink(null);
         }
     } catch (error) {
         console.error('Ошибка проверки авторизации:', error);
         updateAuthUI(null);
         updateAdminLink(null);
+        updateProfileLink(null);
     }
 }
 
@@ -61,6 +65,17 @@ function updateAdminLink(user) {
     }
 }
 
+function updateProfileLink(user) {
+    const link = document.getElementById('profileLink');
+    if (!link) return;
+
+    if (user) {
+        link.style.display = 'block';
+    } else {
+        link.style.display = 'none';
+    }
+}
+
 async function logout() {
     try {
         const userId = localStorage.getItem('userId');
@@ -75,6 +90,7 @@ async function logout() {
         currentUser = null;
         updateAuthUI(null);
         updateAdminLink(null);
+        updateProfileLink(null);
         loadStats();
     } catch (error) {
         console.error('Ошибка выхода:', error);
@@ -87,25 +103,15 @@ async function logout() {
 
 async function loadStats() {
     try {
-        console.log('📊 Запрос к /api/stats');
         const response = await fetch(`${API_URL}/stats`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const stats = await response.json();
-        console.log('📊 Получена статистика:', stats);
 
         document.getElementById('totalBooks').textContent = stats.totalBooks || 0;
         document.getElementById('onlineUsers').textContent = stats.onlineUsers || 0;
         document.getElementById('totalUsers').textContent = stats.totalUsers || 0;
         document.getElementById('activeLoans').textContent = stats.activeLoans || 0;
-
-        const visitorsElement = document.getElementById('totalVisitors');
-        if (visitorsElement) {
-            visitorsElement.textContent = stats.totalVisitors || 0;
-        }
 
         const grid = document.getElementById('popularBooksGrid');
         if (grid) {
@@ -126,16 +132,12 @@ async function loadStats() {
         }
     } catch (error) {
         console.error('❌ Ошибка загрузки статистики:', error);
-        document.getElementById('totalBooks').textContent = '❌';
-        document.getElementById('onlineUsers').textContent = '❌';
-        document.getElementById('totalUsers').textContent = '❌';
-        document.getElementById('activeLoans').textContent = '❌';
-        const visitorsElement = document.getElementById('totalVisitors');
-        if (visitorsElement) visitorsElement.textContent = '❌';
     }
 }
 
-setInterval(loadStats, 30000);
+// ============================================
+// ПОИСК
+// ============================================
 
 function searchBooks() {
     const query = document.getElementById('searchInput')?.value.trim();

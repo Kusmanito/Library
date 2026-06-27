@@ -1,10 +1,6 @@
 const API_URL = '/api';
 let currentUser = null;
 
-// ============================================
-// АВТОРИЗАЦИЯ ДЛЯ КАТАЛОГА
-// ============================================
-
 async function checkAuth() {
     try {
         const userId = localStorage.getItem('userId');
@@ -40,10 +36,6 @@ function updateAdminLink(user) {
     }
 }
 
-// ============================================
-// КАТАЛОГ
-// ============================================
-
 function getUrlParams() {
     const params = new URLSearchParams(window.location.search);
     return {
@@ -72,17 +64,10 @@ async function loadBooks() {
             url += `&year=${encodeURIComponent(params.year)}`;
         }
 
-        console.log('📖 Запрос к API:', url);
-        
         const response = await fetch(url);
-        console.log('📖 Статус ответа:', response.status);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
-        console.log('📖 Получены данные:', data);
 
         if (data.books) {
             renderBooks(data.books);
@@ -180,10 +165,6 @@ function filterBooks() {
 function clearFilters() {
     window.location.href = '/catalog.html';
 }
-
-// ============================================
-// ИНИЦИАЛИЗАЦИЯ
-// ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();

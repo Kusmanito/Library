@@ -1,10 +1,6 @@
 const API_URL = '/api';
 let currentUser = null;
 
-// ============================================
-// ПРОВЕРКА ДОСТУПА
-// ============================================
-
 async function checkAdminAccess() {
     try {
         const userId = localStorage.getItem('userId');
@@ -43,10 +39,6 @@ async function checkAdminAccess() {
     }
 }
 
-// ============================================
-// ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
-// ============================================
-
 function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -62,10 +54,6 @@ function showTab(tabId) {
     if (tabId === 'users') loadUsers();
     if (tabId === 'give') loadGiveData();
 }
-
-// ============================================
-// УПРАВЛЕНИЕ КНИГАМИ
-// ============================================
 
 async function addBook(event) {
     event.preventDefault();
@@ -205,10 +193,6 @@ async function deleteBook(id) {
         alert('Ошибка: ' + error.message);
     }
 }
-
-// ============================================
-// ВЫДАЧА И ВОЗВРАТ КНИГ
-// ============================================
 
 async function loadGiveData() {
     try {
@@ -360,10 +344,6 @@ async function returnBook(loanId) {
     }
 }
 
-// ============================================
-// УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ
-// ============================================
-
 async function loadUsers() {
     try {
         const response = await fetch(`${API_URL}/users`);
@@ -432,32 +412,6 @@ async function toggleAdmin(userId, makeAdmin) {
     }
 }
 
-// ============================================
-// РЕЗЕРВНОЕ КОПИРОВАНИЕ
-// ============================================
-
-async function createBackup() {
-    try {
-        const response = await fetch(`${API_URL}/backup`);
-        const result = await response.json();
-
-        if (response.ok) {
-            document.getElementById('backupResult').innerHTML = `
-                <div class="success">✅ ${result.message}</div>
-                <p style="color: #7f8c8d; font-size: 0.9rem;">Файл: ${result.file}</p>
-            `;
-        } else {
-            document.getElementById('backupResult').innerHTML = `<div class="error">❌ ${result.error || 'Ошибка'}</div>`;
-        }
-    } catch (error) {
-        document.getElementById('backupResult').innerHTML = `<div class="error">❌ Ошибка: ${error.message}</div>`;
-    }
-}
-
-// ============================================
-// ИНИЦИАЛИЗАЦИЯ
-// ============================================
-
 document.addEventListener('DOMContentLoaded', async () => {
     const hasAccess = await checkAdminAccess();
     if (hasAccess) {
@@ -472,7 +426,6 @@ window.addBookCopy = addBookCopy;
 window.createLoan = createLoan;
 window.returnBook = returnBook;
 window.toggleAdmin = toggleAdmin;
-window.createBackup = createBackup;
 window.loadManageBooks = loadManageBooks;
 window.loadLoans = loadLoans;
 window.loadUsers = loadUsers;

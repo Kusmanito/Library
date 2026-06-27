@@ -1,48 +1,10 @@
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Библиотека - Админка</title>
     <link rel="stylesheet" href="/css/style.css">
-    <style>
-        .user-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.8rem;
-            border-bottom: 1px solid #ecf0f1;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        .user-item:last-child {
-            border-bottom: none;
-        }
-        .user-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .loan-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.8rem;
-            border-bottom: 1px solid #ecf0f1;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        .loan-item:last-child {
-            border-bottom: none;
-        }
-        .admin-user {
-            text-align: right;
-            color: #7f8c8d;
-            font-size: 0.9rem;
-            padding: 0.5rem 0;
-        }
-        .admin-user strong {
-            color: #2c3e50;
-        }
-    </style>
 </head>
 <body>
     <header>
@@ -52,6 +14,7 @@
                 <li><a href="/">Главная</a></li>
                 <li><a href="/catalog.html">Каталог</a></li>
                 <li><a href="/admin.html" class="active">Админка</a></li>
+                <li><a href="/profile.html">👤 Профиль</a></li>
             </ul>
             <div class="admin-user" id="adminUser">👑 Администратор</div>
         </nav>
@@ -68,7 +31,6 @@
                     <button class="tab-btn" onclick="showTab('users')">👥 Пользователи</button>
                     <button class="tab-btn" onclick="showTab('add')">➕ Добавить</button>
                     <button class="tab-btn" onclick="showTab('manage')">📝 Управление</button>
-                    <button class="tab-btn" onclick="showTab('backup')">💾 Бэкап</button>
                 </div>
 
                 <!-- Вкладка: Выдача -->
@@ -150,13 +112,6 @@
                 <div id="tab-manage" class="tab-content">
                     <h2>📝 Управление книгами</h2>
                     <div id="manageBooks"></div>
-                </div>
-
-                <!-- Вкладка: Бэкап -->
-                <div id="tab-backup" class="tab-content">
-                    <h2>💾 Резервное копирование</h2>
-                    <button onclick="createBackup()" class="btn-primary">💾 Создать бэкап</button>
-                    <div id="backupResult" style="margin-top: 1rem;"></div>
                 </div>
             </div>
         </section>
