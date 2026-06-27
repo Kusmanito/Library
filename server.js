@@ -18,18 +18,15 @@ console.log(`📁 Папка public: ${path.join(__dirname, 'public')}`);
 // ============================================
 // НАСТРОЙКА ПУТИ К БАЗЕ ДАННЫХ
 // ============================================
-// Проверяем, где мы находимся
 const isAmvera = !!process.env.AMVERA_DATA_PATH;
 console.log(`🌍 Режим: ${isAmvera ? 'Amvera' : 'Локальный'}`);
 
-// Путь к БД
 const dbPath = isAmvera 
     ? path.join(process.env.AMVERA_DATA_PATH, 'library.db')
     : path.join(__dirname, 'database', 'library.db');
 
 console.log(`📂 Путь к БД: ${dbPath}`);
 
-// Создаем папку для БД
 const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
@@ -89,57 +86,49 @@ async function initDatabase() {
             console.log('✅ Создана новая база данных');
         }
 
-        // Проверяем, есть ли таблицы
-        try {
-            db.exec('SELECT * FROM books LIMIT 1');
-            console.log('✅ Таблицы уже существуют');
-        } catch (e) {
-            console.log('🔄 Создаем таблицы...');
-            // Создаем таблицы
-            db.run(`
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    full_name TEXT NOT NULL,
-                    phone TEXT,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    consent_152fz BOOLEAN DEFAULT 1
-                )
-            `);
+        // Создаем таблицы
+        db.run(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                phone TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                consent_152fz BOOLEAN DEFAULT 1
+            )
+        `);
 
-            db.run(`
-                CREATE TABLE IF NOT EXISTS books (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    isbn TEXT UNIQUE,
-                    title TEXT NOT NULL,
-                    author TEXT NOT NULL,
-                    publisher TEXT,
-                    year INTEGER,
-                    description TEXT,
-                    total_copies INTEGER DEFAULT 1,
-                    available_copies INTEGER DEFAULT 1,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
+        db.run(`
+            CREATE TABLE IF NOT EXISTS books (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                isbn TEXT UNIQUE,
+                title TEXT NOT NULL,
+                author TEXT NOT NULL,
+                publisher TEXT,
+                year INTEGER,
+                description TEXT,
+                total_copies INTEGER DEFAULT 1,
+                available_copies INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
-            db.run(`
-                CREATE TABLE IF NOT EXISTS loans (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    book_id INTEGER,
-                    loan_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    due_date DATETIME,
-                    return_date DATETIME,
-                    status TEXT DEFAULT 'active',
-                    FOREIGN KEY (user_id) REFERENCES users(id),
-                    FOREIGN KEY (book_id) REFERENCES books(id)
-                )
-            `);
-            console.log('✅ Таблицы созданы');
-        }
+        db.run(`
+            CREATE TABLE IF NOT EXISTS loans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                book_id INTEGER,
+                loan_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                due_date DATETIME,
+                return_date DATETIME,
+                status TEXT DEFAULT 'active',
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (book_id) REFERENCES books(id)
+            )
+        `);
 
-        // Добавляем тестовые данные, если их нет
+        console.log('✅ Таблицы созданы/проверены');
         addTestData();
         saveDatabase();
         
@@ -156,7 +145,6 @@ async function initDatabase() {
 // ============================================
 function addTestData() {
     try {
-        // Проверяем, есть ли книги
         const result = db.exec('SELECT COUNT(*) as count FROM books');
         const count = result[0]?.values?.[0]?.[0] || 0;
         console.log(`📊 Книг в БД: ${count}`);
@@ -182,7 +170,6 @@ function addTestData() {
             console.log(`✅ Добавлено ${books.length} книг`);
         }
 
-        // Проверяем пользователей
         const userResult = db.exec('SELECT COUNT(*) as count FROM users');
         const userCount = userResult[0]?.values?.[0]?.[0] || 0;
         console.log(`👤 Пользователей в БД: ${userCount}`);
@@ -203,7 +190,7 @@ function addTestData() {
 }
 
 // ============================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С БД
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================
 function getAll(query, params = []) {
     try {
@@ -251,6 +238,18 @@ function runQuery(query, params = []) {
 }
 
 // ============================================
+// ТЕСТОВЫЙ ЭНДПОИНТ (ДЛЯ ПРОВЕРКИ)
+// ============================================
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        message: '✅ API работает!', 
+        time: new Date().toISOString(),
+        environment: isAmvera ? 'Amvera' : 'Local',
+        dbExists: fs.existsSync(dbPath)
+    });
+});
+
+// ============================================
 // API ЭНДПОИНТЫ
 // ============================================
 
@@ -277,7 +276,6 @@ app.get('/api/books', (req, res) => {
             params.push(year);
         }
 
-        // Получаем общее количество
         const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
         const countResult = getOne(countQuery, params);
         const total = countResult ? countResult.total : 0;
@@ -416,19 +414,16 @@ app.post('/api/loans', (req, res) => {
     try {
         const { user_id, book_id, due_days = 14 } = req.body;
 
-        // Проверяем наличие книги
         const book = getOne('SELECT available_copies FROM books WHERE id = ?', [book_id]);
         if (!book || book.available_copies < 1) {
             return res.status(400).json({ error: 'Книга недоступна' });
         }
 
-        // Создаем запись о выдаче
         const result = runQuery(`
             INSERT INTO loans (user_id, book_id, due_date)
             VALUES (?, ?, datetime("now", "+" || ? || " days"))
         `, [user_id, book_id, due_days]);
 
-        // Уменьшаем количество доступных копий
         runQuery('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', [book_id]);
         
         saveDatabase();
@@ -446,20 +441,17 @@ app.put('/api/loans/:id/return', (req, res) => {
     try {
         const { id } = req.params;
 
-        // Проверяем, активна ли выдача
         const loan = getOne('SELECT book_id FROM loans WHERE id = ? AND status = "active"', [id]);
         if (!loan) {
             return res.status(404).json({ error: 'Запись не найдена или уже возвращена' });
         }
 
-        // Обновляем статус выдачи
         runQuery(`
             UPDATE loans 
             SET return_date = datetime("now"), status = "returned" 
             WHERE id = ?
         `, [id]);
 
-        // Увеличиваем количество доступных копий
         runQuery('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?', [loan.book_id]);
         
         saveDatabase();
@@ -585,6 +577,7 @@ async function startServer() {
             console.log(`📧 admin@library.ru / password123`);
             console.log(`📂 Путь к БД: ${dbPath}`);
             console.log(`🌍 Режим: ${isAmvera ? 'Amvera' : 'Локальный'}`);
+            console.log(`✅ Тестовый эндпоинт: /api/test`);
         });
     } catch (err) {
         console.error('❌ Ошибка запуска сервера:', err.message);
