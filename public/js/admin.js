@@ -23,7 +23,6 @@ async function checkAdminAccess() {
 
         currentUser = data.user;
         
-        // Проверяем роль
         if (currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
             document.body.innerHTML = `
                 <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; gap: 1rem;">
@@ -35,7 +34,6 @@ async function checkAdminAccess() {
             return false;
         }
 
-        // Показываем имя пользователя
         document.getElementById('adminUser').textContent = `👑 ${currentUser.full_name || currentUser.username}`;
         return true;
     } catch (error) {
@@ -121,22 +119,71 @@ async function loadManageBooks() {
         }
 
         container.innerHTML = data.books.map(book => `
-            <div class="book-item">
+            <div class="book-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px;">
                 <div>
-                    <span class="book-title">${book.title}</span>
+                    <span class="book-title" style="font-weight: 600;">${book.title}</span>
                     <span style="color: #7f8c8d; margin-left: 0.5rem;">${book.author}</span>
                     <span style="color: #95a5a6; font-size: 0.85rem; margin-left: 0.5rem;">
                         (${book.available_copies}/${book.total_copies} доступно)
                     </span>
                 </div>
-                <div class="book-actions">
-                    <button onclick="deleteBook(${book.id})" class="btn-danger">🗑 Удалить</button>
+                <div class="book-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button onclick="addBookCopy(${book.id})" class="btn-success" style="background: #27ae60; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">
+                        ➕ Пополнить
+                    </button>
+                    <button onclick="deleteBook(${book.id})" class="btn-danger" style="background: #e74c3c; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">
+                        🗑 Удалить
+                    </button>
                 </div>
             </div>
         `).join('');
     } catch (error) {
         console.error('Ошибка загрузки книг:', error);
         document.getElementById('manageBooks').innerHTML = `<p class="error">❌ Ошибка загрузки: ${error.message}</p>`;
+    }
+}
+
+async function addBookCopy(bookId) {
+    const count = prompt('Сколько экземпляров добавить?', '1');
+    if (!count) return;
+    
+    const num = parseInt(count);
+    if (isNaN(num) || num < 1) {
+        alert('Введите число больше 0');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/books/${bookId}`);
+        const book = await response.json();
+        
+        if (!book) {
+            alert('Книга не найдена');
+            return;
+        }
+
+        const newTotal = (book.total_copies || 0) + num;
+        const newAvailable = (book.available_copies || 0) + num;
+
+        const updateResponse = await fetch(`${API_URL}/books/${bookId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ...book,
+                total_copies: newTotal,
+                available_copies: newAvailable
+            })
+        });
+
+        if (updateResponse.ok) {
+            alert(`✅ Добавлено ${num} экземпляров!`);
+            loadManageBooks();
+        } else {
+            const result = await updateResponse.json();
+            alert('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        alert('❌ Ошибка: ' + error.message);
     }
 }
 
@@ -165,7 +212,6 @@ async function deleteBook(id) {
 
 async function loadGiveData() {
     try {
-        // Загружаем пользователей
         const usersResponse = await fetch(`${API_URL}/users`);
         const users = await usersResponse.json();
         
@@ -175,7 +221,6 @@ async function loadGiveData() {
             userSelect.innerHTML += `<option value="${user.id}">${user.full_name || user.username} (${user.username})</option>`;
         });
 
-        // Загружаем книги
         const booksResponse = await fetch(`${API_URL}/books?limit=100`);
         const booksData = await booksResponse.json();
         
@@ -187,7 +232,6 @@ async function loadGiveData() {
             }
         });
 
-        // Загружаем активные выдачи
         loadActiveLoans();
     } catch (error) {
         console.error('Ошибка загрузки данных для выдачи:', error);
@@ -242,7 +286,7 @@ async function loadActiveLoans() {
         }
 
         container.innerHTML = loans.map(loan => `
-            <div class="loan-item">
+            <div class="loan-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <strong>${loan.book_title}</strong>
                     <span style="color: #7f8c8d;">— ${loan.user_full_name || loan.user_name}</span>
@@ -252,7 +296,7 @@ async function loadActiveLoans() {
                     </span>
                     ${new Date(loan.due_date) < new Date() ? '<span style="color: #e74c3c;"> ⚠️ Просрочено</span>' : ''}
                 </div>
-                <button onclick="returnBook(${loan.id})" class="btn-success">↩ Вернуть</button>
+                <button onclick="returnBook(${loan.id})" class="btn-success" style="background: #27ae60; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">↩ Вернуть</button>
             </div>
         `).join('');
     } catch (error) {
@@ -261,7 +305,6 @@ async function loadActiveLoans() {
     }
 }
 
-// Загрузка всех выдач (для вкладки "Выдачи")
 async function loadLoans() {
     try {
         const response = await fetch(`${API_URL}/loans`);
@@ -276,7 +319,7 @@ async function loadLoans() {
         }
 
         container.innerHTML = loans.map(loan => `
-            <div class="loan-item">
+            <div class="loan-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <strong>${loan.book_title}</strong>
                     <span style="color: #7f8c8d;">— ${loan.user_full_name || loan.user_name}</span>
@@ -338,7 +381,7 @@ async function loadUsers() {
             const isAdmin = user.role === 'admin' || user.role === 'super_admin';
             const isCreator = user.role === 'super_admin';
             return `
-                <div class="user-item">
+                <div class="user-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <strong>${user.full_name || user.username}</strong>
                         <span style="color: #7f8c8d; margin-left: 0.5rem;">@${user.username}</span>
@@ -351,8 +394,8 @@ async function loadUsers() {
                     </div>
                     ${currentUser?.role === 'super_admin' && user.role !== 'super_admin' ? `
                         <div class="user-actions">
-                            <button onclick="toggleAdmin(${user.id}, ${!isAdmin})" class="btn-secondary">
-                                ${isAdmin ? '❌ Забрать права админа' : '✅ Дать права админа'}
+                            <button onclick="toggleAdmin(${user.id}, ${!isAdmin})" class="btn-secondary" style="background: ${isAdmin ? '#e74c3c' : '#27ae60'}; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">
+                                ${isAdmin ? '❌ Забрать права' : '✅ Дать права админа'}
                             </button>
                         </div>
                     ` : ''}
@@ -418,14 +461,14 @@ async function createBackup() {
 document.addEventListener('DOMContentLoaded', async () => {
     const hasAccess = await checkAdminAccess();
     if (hasAccess) {
-        showTab('give'); // По умолчанию показываем вкладку "Выдача"
+        showTab('give');
     }
 });
 
-// Делаем функции глобальными
 window.showTab = showTab;
 window.addBook = addBook;
 window.deleteBook = deleteBook;
+window.addBookCopy = addBookCopy;
 window.createLoan = createLoan;
 window.returnBook = returnBook;
 window.toggleAdmin = toggleAdmin;

@@ -12,6 +12,22 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ------ СЧЁТЧИК ПОСЕЩЕНИЙ (ОНЛАЙН) ------
+let totalVisitors = 0;
+const visitorIPs = new Set();
+
+app.use((req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress;
+    if (!visitorIPs.has(ip)) {
+        visitorIPs.add(ip);
+        totalVisitors++;
+        console.log(`👤 Новый посетитель: ${ip}, всего: ${totalVisitors}`);
+    }
+    next();
+});
+
+console.log(`📁 Папка public: ${path.join(__dirname, 'public')}`);
+
 // ----- ПУТЬ К БАЗЕ ДАННЫХ -----
 const isAmvera = !!process.env.AMVERA_DATA_PATH;
 const dbPath = isAmvera
@@ -20,7 +36,6 @@ const dbPath = isAmvera
 
 console.log(`📂 Путь к БД: ${dbPath}`);
 
-// СОЗДАЁМ ПАПКУ, ЕСЛИ НЕТ
 const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
@@ -293,6 +308,16 @@ app.get('/api/books', (req, res) => {
   }
 });
 
+app.get('/api/books/:id', (req, res) => {
+  try {
+    const book = getOne('SELECT * FROM books WHERE id = ?', [req.params.id]);
+    if (!book) return res.status(404).json({ error: 'Книга не найдена' });
+    res.json(book);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/books', (req, res) => {
   try {
     const { isbn, title, author, publisher, year, description, total_copies } = req.body;
@@ -311,6 +336,24 @@ app.post('/api/books', (req, res) => {
   }
 });
 
+app.put('/api/books/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, author, publisher, year, description, total_copies, available_copies } = req.body;
+    const result = runQuery(`
+      UPDATE books 
+      SET title = ?, author = ?, publisher = ?, year = ?, 
+          description = ?, total_copies = ?, available_copies = ?
+      WHERE id = ?
+    `, [title, author, publisher, year, description, total_copies, available_copies, id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Книга не найдена' });
+    saveDatabase();
+    res.json({ message: 'Книга обновлена' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/books/:id', (req, res) => {
   try {
     runQuery('DELETE FROM books WHERE id = ?', [req.params.id]);
@@ -322,22 +365,32 @@ app.delete('/api/books/:id', (req, res) => {
 });
 
 app.get('/api/stats', (req, res) => {
-  try {
-    const totalBooks = getOne('SELECT COUNT(*) as total FROM books')?.total || 0;
-    const totalUsers = getOne('SELECT COUNT(*) as total FROM users')?.total || 0;
-    const onlineUsers = getOne('SELECT COUNT(*) as total FROM users WHERE online = 1')?.total || 0;
-    const activeLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active"')?.total || 0;
-    const overdueLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active" AND due_date < datetime("now")')?.total || 0;
-    const popularBooks = getAll(`
-      SELECT b.id, b.title, b.author, COUNT(l.id) as loan_count
-      FROM books b JOIN loans l ON b.id = l.book_id
-      GROUP BY b.id ORDER BY loan_count DESC LIMIT 5
-    `);
+    try {
+        const totalBooks = getOne('SELECT COUNT(*) as total FROM books')?.total || 0;
+        const totalUsers = getOne('SELECT COUNT(*) as total FROM users')?.total || 0;
+        const onlineUsers = getOne('SELECT COUNT(*) as total FROM users WHERE online = 1')?.total || 0;
+        const activeLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active"')?.total || 0;
+        const overdueLoans = getOne('SELECT COUNT(*) as total FROM loans WHERE status = "active" AND due_date < datetime("now")')?.total || 0;
+        const popularBooks = getAll(`
+            SELECT b.id, b.title, b.author, COUNT(l.id) as loan_count
+            FROM books b JOIN loans l ON b.id = l.book_id
+            GROUP BY b.id ORDER BY loan_count DESC LIMIT 5
+        `);
 
-    res.json({ totalBooks, totalUsers, onlineUsers, activeLoans, overdueLoans, popularBooks });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+        const totalVisitorsCount = visitorIPs.size;
+
+        res.json({
+            totalBooks,
+            totalUsers,
+            onlineUsers,
+            activeLoans,
+            overdueLoans,
+            popularBooks,
+            totalVisitors: totalVisitorsCount
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post('/api/loans', (req, res) => {

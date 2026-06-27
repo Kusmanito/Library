@@ -102,6 +102,11 @@ async function loadStats() {
         document.getElementById('totalUsers').textContent = stats.totalUsers || 0;
         document.getElementById('activeLoans').textContent = stats.activeLoans || 0;
 
+        const visitorsElement = document.getElementById('totalVisitors');
+        if (visitorsElement) {
+            visitorsElement.textContent = stats.totalVisitors || 0;
+        }
+
         const grid = document.getElementById('popularBooksGrid');
         if (grid) {
             if (!stats.popularBooks || stats.popularBooks.length === 0) {
@@ -125,8 +130,12 @@ async function loadStats() {
         document.getElementById('onlineUsers').textContent = '❌';
         document.getElementById('totalUsers').textContent = '❌';
         document.getElementById('activeLoans').textContent = '❌';
+        const visitorsElement = document.getElementById('totalVisitors');
+        if (visitorsElement) visitorsElement.textContent = '❌';
     }
 }
+
+setInterval(loadStats, 30000);
 
 function searchBooks() {
     const query = document.getElementById('searchInput')?.value.trim();
