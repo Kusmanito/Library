@@ -9,7 +9,10 @@ const socketIo = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+    pingTimeout: 60000,
+    pingInterval: 25000
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -20,7 +23,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 console.log(`📁 Папка public: ${path.join(__dirname, 'public')}`);
 
 // ============================================
-// ПУТЬ К БАЗЕ ДАННЫХ (В ПАПКЕ ПРОЕКТА)
+// ПУТЬ К БАЗЕ ДАННЫХ
 // ============================================
 const dbPath = path.join(__dirname, 'database', 'library.db');
 console.log(`📂 Путь к БД: ${dbPath}`);
@@ -50,7 +53,7 @@ function saveDatabase() {
 }
 
 // ============================================
-// ИНИЦИАЛИЗАЦИЯ БД
+// ИНИЦИАЛИЗАЦИЯ БД (С ПРОВЕРКОЙ)
 // ============================================
 async function initDatabase() {
     try {
@@ -187,16 +190,23 @@ function runQuery(query, params = []) {
 // SOCKET.IO (РЕАЛЬНОЕ ВРЕМЯ)
 // ============================================
 let onlineVisitors = 0;
+const visitorSockets = new Set();
 
 io.on('connection', (socket) => {
-    onlineVisitors++;
-    io.emit('visitors_count', onlineVisitors);
-    console.log(`👤 Посетитель подключился. Онлайн: ${onlineVisitors}`);
+    if (!visitorSockets.has(socket.id)) {
+        visitorSockets.add(socket.id);
+        onlineVisitors++;
+        io.emit('visitors_count', onlineVisitors);
+        console.log(`👤 Посетитель подключился. Онлайн: ${onlineVisitors}`);
+    }
 
     socket.on('disconnect', () => {
-        onlineVisitors--;
-        io.emit('visitors_count', onlineVisitors);
-        console.log(`👤 Посетитель отключился. Онлайн: ${onlineVisitors}`);
+        if (visitorSockets.has(socket.id)) {
+            visitorSockets.delete(socket.id);
+            onlineVisitors--;
+            io.emit('visitors_count', onlineVisitors);
+            console.log(`👤 Посетитель отключился. Онлайн: ${onlineVisitors}`);
+        }
     });
 });
 
@@ -382,14 +392,7 @@ app.get('/api/stats', (req, res) => {
             GROUP BY b.id ORDER BY loan_count DESC LIMIT 5
         `);
 
-        res.json({
-            totalBooks,
-            totalUsers,
-            onlineUsers,
-            activeLoans,
-            overdueLoans,
-            popularBooks
-        });
+        res.json({ totalBooks, totalUsers, onlineUsers, activeLoans, overdueLoans, popularBooks });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
