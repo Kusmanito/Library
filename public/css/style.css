@@ -795,3 +795,418 @@ footer p {
         padding: 12px 20px;
     }
 }
+/* ============================================
+   КРАСИВАЯ АДМИНКА
+   ============================================ */
+
+/* Шапка админки */
+.admin-header {
+    margin-bottom: 2rem;
+}
+
+.admin-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a202c;
+    margin-bottom: 0.25rem;
+}
+
+.admin-subtitle {
+    color: #718096;
+    font-size: 1rem;
+}
+
+/* Вкладки */
+.admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 2rem;
+    background: #f7fafc;
+    padding: 8px;
+    border-radius: 16px;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.25s ease;
+    background: transparent;
+    color: #4a5568;
+}
+
+.tab-btn .tab-icon {
+    font-size: 1.1rem;
+}
+
+.tab-btn:hover {
+    background: rgba(49, 130, 206, 0.08);
+    color: #2b6cb0;
+}
+
+.tab-btn.active {
+    background: #3182ce;
+    color: white;
+    box-shadow: 0 4px 12px rgba(49, 130, 206, 0.35);
+}
+
+.tab-btn.active:hover {
+    background: #2b6cb0;
+    transform: translateY(-1px);
+}
+
+/* Контент вкладок */
+.tab-content {
+    display: none;
+    animation: fadeSlideIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tab-content-header {
+    margin-bottom: 1.5rem;
+}
+
+.tab-content-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1a202c;
+    margin-bottom: 0.25rem;
+}
+
+.tab-content-header p {
+    color: #718096;
+    font-size: 0.95rem;
+}
+
+/* Карточки */
+.admin-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    border: 1px solid #edf2f7;
+    transition: box-shadow 0.2s ease;
+}
+
+.admin-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Формы */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #2d3748;
+    margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    background: #f7fafc;
+    color: #2d3748;
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #3182ce;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(49, 130, 206, 0.12);
+    outline: none;
+}
+
+.form-group select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234a5568' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 40px;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.form-row .form-group {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Кнопки */
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: #3182ce;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background: #2b6cb0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(49, 130, 206, 0.35);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-lg {
+    padding: 12px 32px;
+    font-size: 1rem;
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: #edf2f7;
+    color: #2d3748;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: #38a169;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-success:hover {
+    background: #2f855a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(56, 161, 105, 0.3);
+}
+
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: #e53e3e;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+    background: #c53030;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+}
+
+/* Результаты */
+.result-message {
+    margin-top: 1rem;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-weight: 500;
+    display: none;
+}
+
+.result-message.success {
+    display: block;
+    background: #f0fff4;
+    color: #22543d;
+    border: 1px solid #c6f6d5;
+}
+
+.result-message.error {
+    display: block;
+    background: #fff5f5;
+    color: #9b2c2c;
+    border: 1px solid #fed7d7;
+}
+
+/* Элементы списков */
+.book-item,
+.loan-item,
+.user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #edf2f7;
+    flex-wrap: wrap;
+    gap: 10px;
+    transition: background 0.15s ease;
+    border-radius: 8px;
+}
+
+.book-item:hover,
+.loan-item:hover,
+.user-item:hover {
+    background: #f7fafc;
+}
+
+.book-item:last-child,
+.loan-item:last-child,
+.user-item:last-child {
+    border-bottom: none;
+}
+
+.book-title {
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.book-actions,
+.user-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Статистика */
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card-modern {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    border: 1px solid #edf2f7;
+    text-align: center;
+    transition: all 0.25s ease;
+}
+
+.stat-card-modern:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+.stat-card-modern .stat-icon {
+    font-size: 2rem;
+    margin-bottom: 4px;
+}
+
+.stat-card-modern .stat-number {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #1a202c;
+    line-height: 1.2;
+}
+
+.stat-card-modern .stat-label {
+    font-size: 0.85rem;
+    color: #718096;
+    font-weight: 500;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .admin-tabs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .tab-btn {
+        justify-content: center;
+    }
+    
+    .form-row {
+        flex-direction: column;
+    }
+    
+    .form-row .form-group {
+        min-width: auto;
+    }
+    
+    .stats-cards {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .book-item,
+    .loan-item,
+    .user-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .book-actions,
+    .user-actions {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-cards {
+        grid-template-columns: 1fr;
+    }
+}
