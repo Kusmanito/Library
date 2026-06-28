@@ -42,4 +42,17 @@
 
     <script src="/js/profile.js"></script>
 </body>
+<script>
+    (function trackVisit() {
+        const userId = localStorage.getItem('userId');
+        const username = localStorage.getItem('username') || 'guest';
+        const page = window.location.pathname;
+
+        fetch('/api/visit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, username, page })
+        }).catch(() => {});
+    })();
+</script>
 </html>

@@ -31,38 +31,12 @@ async function checkAdminAccess() {
         }
 
         document.getElementById('adminUser').textContent = `👑 ${currentUser.full_name || currentUser.username}`;
-        updateNavigation(currentUser);
         return true;
     } catch (error) {
         console.error('Ошибка проверки доступа:', error);
         window.location.href = '/login.html';
         return false;
     }
-}
-
-function updateNavigation(user) {
-    const navLinks = document.getElementById('navLinks');
-    if (!navLinks) return;
-
-    const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
-    const isAuth = !!user;
-
-    const currentPage = window.location.pathname;
-
-    let html = '';
-
-    html += `<li><a href="/" class="${currentPage === '/' || currentPage === '/index.html' ? 'active' : ''}">Главная</a></li>`;
-    html += `<li><a href="/catalog.html" class="${currentPage.includes('catalog') ? 'active' : ''}">Каталог</a></li>`;
-
-    if (isAdmin) {
-        html += `<li><a href="/admin.html" class="${currentPage.includes('admin') ? 'active' : ''}">Админка</a></li>`;
-    }
-
-    if (isAuth) {
-        html += `<li><a href="/profile.html" class="${currentPage.includes('profile') ? 'active' : ''}">👤 Профиль</a></li>`;
-    }
-
-    navLinks.innerHTML = html;
 }
 
 function showTab(tabId) {
@@ -79,6 +53,7 @@ function showTab(tabId) {
     if (tabId === 'loans') loadLoans();
     if (tabId === 'users') loadUsers();
     if (tabId === 'give') loadGiveData();
+    if (tabId === 'stats') loadStats();
 }
 
 async function addBook(event) {
@@ -438,6 +413,106 @@ async function toggleAdmin(userId, makeAdmin) {
     }
 }
 
+// ============================================
+// СТАТИСТИКА
+// ============================================
+
+async function loadStats() {
+    try {
+        const response = await fetch(`${API_URL}/stats/detailed`);
+        if (!response.ok) throw new Error('Ошибка загрузки статистики');
+        
+        const stats = await response.json();
+
+        document.getElementById('onlineNow').textContent = stats.onlineNow || 0;
+        document.getElementById('guestsOnline').textContent = stats.guestsOnline || 0;
+        document.getElementById('todayVisits').textContent = stats.todayStats?.total_visits || 0;
+        document.getElementById('todayUsers').textContent = stats.todayStats?.unique_users || 0;
+
+        const onlineList = document.getElementById('onlineUsersList');
+        if (stats.onlineUsers && stats.onlineUsers.length > 0) {
+            onlineList.innerHTML = stats.onlineUsers.map(user => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
+                    <span>
+                        <strong>${user.full_name || user.username}</strong>
+                        <span style="color: #7f8c8d; font-size: 0.85rem;">(@${user.username})</span>
+                        <span style="color: #95a5a6; font-size: 0.85rem;">${user.role === 'super_admin' ? '👑' : user.role === 'admin' ? '🛡️' : ''}</span>
+                    </span>
+                    <span style="color: #27ae60; font-size: 0.9rem;">
+                        📍 ${user.current_page || 'Неизвестно'}
+                        <span style="color: #95a5a6; font-size: 0.75rem;">
+                            (${new Date(user.last_seen).toLocaleTimeString()})
+                        </span>
+                    </span>
+                </div>
+            `).join('');
+        } else {
+            onlineList.innerHTML = '<p style="color: #7f8c8d;">Нет пользователей в сети</p>';
+        }
+
+        const locations = document.getElementById('userLocations');
+        if (stats.onlineUsers && stats.onlineUsers.length > 0) {
+            const locationMap = {};
+            stats.onlineUsers.forEach(user => {
+                const page = user.current_page || 'Неизвестно';
+                if (!locationMap[page]) locationMap[page] = [];
+                locationMap[page].push(user.full_name || user.username);
+            });
+            locations.innerHTML = Object.entries(locationMap).map(([page, users]) => `
+                <div style="padding: 6px 0; border-bottom: 1px solid #eee;">
+                    <strong>📍 ${page}</strong>
+                    <span style="color: #7f8c8d; font-size: 0.85rem;">— ${users.join(', ')}</span>
+                </div>
+            `).join('');
+        } else {
+            locations.innerHTML = '<p style="color: #7f8c8d;">Нет данных о местоположении</p>';
+        }
+
+        const pagesList = document.getElementById('popularPagesList');
+        if (stats.popularPages && stats.popularPages.length > 0) {
+            pagesList.innerHTML = stats.popularPages.map((page, index) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
+                    <span>
+                        <strong>#${index + 1}</strong>
+                        <span style="margin-left: 0.5rem;">${page.page}</span>
+                    </span>
+                    <span>
+                        <span style="color: #3498db;">${page.visits} просмотров</span>
+                        <span style="color: #7f8c8d; font-size: 0.85rem; margin-left: 0.5rem;">
+                            (${page.unique_users} пользователей)
+                        </span>
+                    </span>
+                </div>
+            `).join('');
+        } else {
+            pagesList.innerHTML = '<p style="color: #7f8c8d;">Нет данных</p>';
+        }
+
+        const hourlyContainer = document.getElementById('hourlyStats');
+        if (stats.hourlyStats && stats.hourlyStats.length > 0) {
+            const maxVisits = Math.max(...stats.hourlyStats.map(h => parseInt(h.visits)));
+            hourlyContainer.innerHTML = stats.hourlyStats.map(h => {
+                const percent = maxVisits > 0 ? (h.visits / maxVisits * 100) : 0;
+                return `
+                    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 4px 0;">
+                        <span style="width: 40px; font-size: 0.85rem; color: #7f8c8d;">${String(h.hour).padStart(2, '0')}:00</span>
+                        <div style="flex: 1; background: #ecf0f1; border-radius: 4px; height: 20px; overflow: hidden;">
+                            <div style="width: ${percent}%; background: linear-gradient(90deg, #3498db, #2ecc71); height: 100%; border-radius: 4px; transition: width 0.3s;"></div>
+                        </div>
+                        <span style="font-size: 0.85rem; color: #2c3e50; width: 40px; text-align: right;">${h.visits}</span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            hourlyContainer.innerHTML = '<p style="color: #7f8c8d;">Нет данных по часам</p>';
+        }
+
+    } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+        document.getElementById('onlineUsersList').innerHTML = `<p class="error">❌ Ошибка загрузки: ${error.message}</p>`;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     const hasAccess = await checkAdminAccess();
     if (hasAccess) {
@@ -456,3 +531,4 @@ window.loadManageBooks = loadManageBooks;
 window.loadLoans = loadLoans;
 window.loadUsers = loadUsers;
 window.loadGiveData = loadGiveData;
+window.loadStats = loadStats;
